@@ -1,3 +1,4 @@
+import { SchemaFormatType } from '../../Actions/Generator';
 import { ISchema, ObjectSchema, SchemaObject } from '../../Schema';
 import { ISchemaRow } from './RpcCache';
 import RpcCollection from './Collection';
@@ -7,10 +8,10 @@ export default class RpcSchema {
     readonly collection: string;
     readonly name: string;
 
-    // tslint:disable-next-line:variable-name
     private readonly _data: Promise<ISchemaRow>;
-    // tslint:disable-next-line:variable-name
     private readonly _collection: Promise<RpcCollection>;
+
+    private _formatTypes: Promise<SchemaFormatType[]> | null = null;
 
     constructor(private readonly api: RpcApi, collection: string, name: string, data?: ISchemaRow, cache: boolean = true) {
         this.collection = collection;
@@ -43,6 +44,16 @@ export default class RpcSchema {
 
     async rawFormat(): Promise<SchemaObject[]> {
         return (await this._data).format;
+    }
+
+    // v2 per-field media-type hints (schematypes table, set via setschematyp);
+    // empty for schemas without a types row.
+    async formatTypes(): Promise<SchemaFormatType[]> {
+        if (!this._formatTypes) {
+            this._formatTypes = this.api.queue.fetchSchemaFormatTypes(this.collection, this.name);
+        }
+
+        return await this._formatTypes;
     }
 
     async toObject(): Promise<object> {

@@ -1,49 +1,69 @@
 {
-  "name": "atomicassets",
-  "description": "js module to fetch data from the atomicassets NFT standard",
+  "name": "@atomichub/atomicassets",
+  "description": "JavaScript/TypeScript SDK for the AtomicAssets NFT standard on Antelope chains: read NFT data, serialize attribute data, and build v2 contract actions",
   "keywords": [
     "atomicassets",
+    "atomicmarket",
+    "atomichub",
+    "wax",
+    "antelope",
+    "eosio",
     "nft",
     "blockchain",
-    "eosio",
-    "pinknetwork"
+    "sdk"
   ],
-  "author": "pink.network",
-  "homepage": "https://atomicassets.io",
+  "author": "AtomicHub",
+  "homepage": "https://github.com/atomicassets/atomicassets-sdk",
   "bugs": {
-    "url": "https://github.com/pinknetworkx/atomicassets-js/issues",
-    "email": "pinknetworkx@gmail.com"
+    "url": "https://github.com/atomicassets/atomicassets-sdk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atomicassets/atomicassets-sdk.git"
   },
   "license": "MIT",
-  "version": "1.5.0",
-  "main": "build/index.js",
-  "types": "build/index.d.ts",
-  "scripts": {
-    "build:npm": "tsc",
-    "build:web": "webpack --config webpack.prod.js",
-    "build": "yarn run build:npm && yarn run build:web",
-    "lint": "tslint -p tsconfig.json",
-    "test": "mocha -r ts-node/register test/**/*.test.ts",
-    "publish": "yarn run build && yarn publish"
+  "version": "2.0.0",
+  "engines": {
+    "node": ">=20"
   },
-  "dependencies": {
-    "big-integer": "^1.6.51"
+  "main": "build/index.cjs",
+  "module": "build/index.mjs",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./build/index.d.mts",
+        "default": "./build/index.mjs"
+      },
+      "require": {
+        "types": "./build/index.d.ts",
+        "default": "./build/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "build/"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint .",
+    "pretest": "tsup",
+    "test": "mocha -r ts-node/register test/**/*.test.ts",
+    "prepare": "tsup",
+    "prepack": "tsup"
   },
   "devDependencies": {
-    "@types/chai": "^4.2.18",
-    "@types/mocha": "^8.2.2",
-    "@types/node": "^14.14.44",
-    "chai": "^4.3.4",
-    "mocha": "^8.4.0",
-    "node-fetch": "^2.6.1",
-    "ts-loader": "^9.1.2",
-    "ts-node": "^9.1.1",
-    "tslint": "^5.20.1",
-    "tslint-consistent-codestyle": "^1.16.0",
-    "tslint-eslint-rules": "^5.4.0",
-    "tslint-origin-ordered-imports-rule": "^1.2.2",
-    "typescript": "^4.2.4",
-    "webpack": "^5.37.0",
-    "webpack-cli": "^4.7.0"
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^22.0.0",
+    "chai": "^4.4.1",
+    "eslint": "^9.17.0",
+    "mocha": "^11.0.0",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.0",
+    "typescript-eslint": "^8.59.0"
   }
 }

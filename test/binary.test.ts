@@ -28,6 +28,13 @@ describe('Binary', () => {
         expect(Number(integer_unsign(BigInt(0), 2))).to.equal(0);
     });
 
+    it('unsign integer at the sign-bit and range boundaries', () => {
+        expect(Number(integer_unsign(BigInt(128), 1))).to.equal(-128);
+        expect(Number(integer_unsign(BigInt(127), 1))).to.equal(127);
+        expect(Number(integer_unsign(BigInt(255), 1))).to.equal(-1);
+        expect(() => integer_unsign(BigInt(256), 1)).to.throw('too big');
+    });
+
     it('pack integer below 127', () => {
         expect(varint_encode(BigInt(5))).to.deep.equal(new Uint8Array([0b00000101]));
     });
@@ -35,7 +42,7 @@ describe('Binary', () => {
     it('unpack integer below 127', () => {
         const data = new Uint8Array([0b00000101]);
 
-        expect(varint_decode(prepare(data)).toJSNumber()).to.equal(5);
+        expect(Number(varint_decode(prepare(data)))).to.equal(5);
     });
 
     it('pack 2 bytes', () => {
@@ -45,7 +52,7 @@ describe('Binary', () => {
     it('unpack 2 bytes', () => {
         const data = new Uint8Array([0b11100110, 0b00000001]);
 
-        expect(varint_decode(prepare(data)).toJSNumber()).to.equal(230);
+        expect(Number(varint_decode(prepare(data)))).to.equal(230);
     });
 
     it('pack max integer', () => {
@@ -55,7 +62,7 @@ describe('Binary', () => {
     it('unpack max integer', () => {
         const data = new Uint8Array([0b11010110, 0b11110010, 0b11111001, 0b11111111, 0b00001111]);
 
-        expect(varint_decode(prepare(data)).toJSNumber()).to.equal(4294867286);
+        expect(Number(varint_decode(prepare(data)))).to.equal(4294867286);
     });
 
     it('base58 encode', () => {
@@ -71,17 +78,17 @@ describe('Binary', () => {
     });
 
     it('zigzag encode', () => {
-        expect(zigzag_encode(6).toJSNumber()).to.equal(12);
-        expect(zigzag_encode(1).toJSNumber()).to.equal(2);
-        expect(zigzag_encode(-1).toJSNumber()).to.equal(1);
-        expect(zigzag_encode(0).toJSNumber()).to.equal(0);
+        expect(Number(zigzag_encode(6))).to.equal(12);
+        expect(Number(zigzag_encode(1))).to.equal(2);
+        expect(Number(zigzag_encode(-1))).to.equal(1);
+        expect(Number(zigzag_encode(0))).to.equal(0);
     });
 
     it('zigzag decode', () => {
-        expect(zigzag_decode(12).toJSNumber()).to.equal(6);
-        expect(zigzag_decode(3).toJSNumber()).to.equal(-2);
-        expect(zigzag_decode(2).toJSNumber()).to.equal(1);
-        expect(zigzag_decode(1).toJSNumber()).to.equal(-1);
-        expect(zigzag_decode(0).toJSNumber()).to.equal(0);
+        expect(Number(zigzag_decode(12))).to.equal(6);
+        expect(Number(zigzag_decode(3))).to.equal(-2);
+        expect(Number(zigzag_decode(2))).to.equal(1);
+        expect(Number(zigzag_decode(1))).to.equal(-1);
+        expect(Number(zigzag_decode(0))).to.equal(0);
     });
 });

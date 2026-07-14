@@ -5,7 +5,13 @@ import { ITypeParser } from './index';
 
 export default class VariableParser implements ITypeParser {
     deserialize(state: SerializationState): any {
-        const length = varint_decode(state).toJSNumber();
+        const rawLength = varint_decode(state);
+
+        if (rawLength > BigInt(state.data.length - state.position)) {
+            throw new DeserializationError(`VariableParser: read past end`);
+        }
+
+        const length = Number(rawLength);
         state.position += length;
 
         const data = state.data.slice(state.position - length, state.position);

@@ -1,5 +1,10 @@
+import { SchemaFormatType } from '../../Actions/Generator';
 import { IAssetRow, ICollectionRow, IOfferRow, ISchemaRow, ITemplateRow } from './RpcCache';
 import RpcApi from './index';
+
+// Raw row of the v2 templates2 table (mutable template data), joined into
+// ITemplateRow before caching.
+type Template2Row = { template_id: number, schema_name: string, mutable_serialized_data: number[] };
 
 export default class RpcQueue {
     private elements: any[] = [];
@@ -24,9 +29,32 @@ export default class RpcQueue {
     }
 
     async fetchTemplate(collectionName: string, templateID: string, useCache: boolean = true): Promise<ITemplateRow> {
-        return await this.fetch_single_row<ITemplateRow>('templates', collectionName, templateID, (data?: ITemplateRow) => {
-            return (useCache || typeof data !== 'undefined') ? this.api.cache.getTemplate(collectionName, templateID, data) : null;
-        });
+        const cached = useCache ? this.api.cache.getTemplate(collectionName, templateID) : null;
+
+        if (cached) {
+            return cached;
+        }
+
+        const [row, mutableRow] = await Promise.all([
+            this.fetch_optional_row<ITemplateRow>('templates', collectionName, templateID),
+            this.fetch_optional_row<Template2Row>('templates2', collectionName, templateID)
+        ]);
+
+        if (!row) {
+            throw new Error('Row not found for template ' + collectionName + ':' + templateID);
+        }
+
+        (<any>row).mutable_serialized_data = mutableRow ? mutableRow.mutable_serialized_data : [];
+
+        return <ITemplateRow>this.api.cache.getTemplate(collectionName, templateID, row);
+    }
+
+    async fetchSchemaFormatTypes(collectionName: string, schemaName: string): Promise<SchemaFormatType[]> {
+        const row = await this.fetch_optional_row<{schema_name: string, format_type: SchemaFormatType[]}>(
+            'schematypes', collectionName, schemaName
+        );
+
+        return row ? row.format_type : [];
     }
 
     async fetchSchema(collectionName: string, schemaName: string, useCache: boolean = true): Promise<ISchemaRow> {
@@ -50,9 +78,16 @@ export default class RpcQueue {
     }
 
     async fetchCollectionTemplates(collectionName: string): Promise<ITemplateRow[]> {
-        const rows = await this.fetch_all_rows<ITemplateRow>('templates', collectionName, 'template_id');
+        const [rows, mutableRows] = await Promise.all([
+            this.fetch_all_rows<ITemplateRow>('templates', collectionName, 'template_id'),
+            this.fetch_all_rows<Template2Row>('templates2', collectionName, 'template_id')
+        ]);
+
+        const mutableData = new Map(mutableRows.map((row) => [String(row.template_id), row.mutable_serialized_data]));
 
         return rows.map((template) => {
+            (<any>template).mutable_serialized_data = mutableData.get(String(template.template_id)) ?? [];
+
             return <ITemplateRow>this.api.cache.getTemplate(collectionName, String(template.template_id), template);
         });
     }
@@ -100,6 +135,32 @@ export default class RpcQueue {
                 this.interval = null;
             }
         }, Math.ceil(1000 / this.requestLimit));
+    }
+
+    // Like fetch_single_row but resolves null for a missing row instead of
+    // rejecting; used for the v2 side tables (templates2, schematypes) whose
+    // rows only exist once the corresponding v2 action has run.
+    private async fetch_optional_row<T>(
+        table: string, scope: string, match: any,
+        indexPosition: number = 1, keyType: string = ''
+    ): Promise<T | null> {
+        return new Promise((resolve, reject) => {
+            this.elements.push(async () => {
+                try {
+                    const resp = await this.api.getTableRows({
+                        code: this.api.contract, table, scope,
+                        limit: 1, lower_bound: match, upper_bound: match,
+                        index_position: indexPosition, key_type: keyType
+                    });
+
+                    return resolve(resp.rows.length === 0 ? null : <T>resp.rows[0]);
+                } catch (e) {
+                    return reject(e);
+                }
+            });
+
+            this.dequeue();
+        });
     }
 
     private async fetch_single_row<T>(

@@ -1,5 +1,3 @@
-import bigInt, { BigInteger } from 'big-integer';
-
 import DeserializationError from '../Errors/DeserializationError';
 import SerializationError from '../Errors/SerializationError';
 import BaseCoder from './Coders/Base';
@@ -7,98 +5,112 @@ import SerializationState from './State';
 
 export function varint_encode(input: any): Uint8Array {
     const bytes: number[] = [];
-    let n = bigInt(input);
+    let n = BigInt(input);
 
-    if (n.lesser(0)) {
+    if (n < 0n) {
         throw new SerializationError('cant pack negative integer');
     }
 
     while (true) {
-        const byte = n.and(0x7F);
+        const byte = n & 0x7Fn;
 
-        n = n.shiftRight(7);
+        n = n >> 7n;
 
-        if (n.equals(0)) {
-            bytes.push(byte.toJSNumber());
+        if (n === 0n) {
+            bytes.push(Number(byte));
 
             break;
         }
 
-        bytes.push(byte.toJSNumber() + 128);
+        bytes.push(Number(byte) + 128);
     }
 
     return new Uint8Array(bytes);
 }
 
-export function varint_decode(state: SerializationState): BigInteger {
-    let result: BigInteger = bigInt(0);
+// The widest legal varint is the 64-bit maximum zigzag value, which needs
+// ceil(70 / 7) = 10 bytes. Anything longer is hostile input designed to burn
+// quadratic BigInt work, so it is rejected before the loop accumulates it.
+const VARINT_MAX_BYTES = 10;
+
+export function varint_decode(state: SerializationState): bigint {
+    let result = 0n;
 
     for (let i = 0; true; i++) {
+        if (i >= VARINT_MAX_BYTES) {
+            throw new DeserializationError('varint exceeds maximum encoded length');
+        }
+
         if (state.position >= state.data.length) {
             throw new DeserializationError('failed to unpack integer');
         }
 
-        const byte = bigInt(state.data[state.position]);
+        const byte = BigInt(state.data[state.position]);
         state.position += 1;
 
-        if (byte.lesser(128)) {
-            result = result.plus(byte.shiftLeft(7 * i));
+        if (byte < 128n) {
+            result = result + (byte << BigInt(7 * i));
 
             break;
         }
 
-        result = result.plus(byte.and(0x7F).shiftLeft(7 * i));
+        result = result + ((byte & 0x7Fn) << BigInt(7 * i));
     }
 
     return result;
 }
 
-export function integer_sign(input: any, size: number): BigInteger {
-    const n = bigInt(input);
+export function integer_sign(input: any, size: number): bigint {
+    const n = BigInt(input);
 
-    if (n.greaterOrEquals(bigInt(2).pow(8 * size - 1))) {
+    if (n >= 2n ** BigInt(8 * size - 1)) {
         throw new Error('cannot sign integer: too big');
     }
 
-    if (n.greaterOrEquals(0)) {
+    if (n >= 0n) {
         return n;
     }
 
-    return n.negate().xor(bigInt(2).pow(8 * size).minus(1)).plus(1);
+    return (-n ^ (2n ** BigInt(8 * size) - 1n)) + 1n;
 }
 
-export function integer_unsign(input: any, size: number): BigInteger {
-    const n = bigInt(input);
+// Deliberate divergence from the v1 package: both comparisons are >= where v1
+// used strict >, so the exact sign-bit value maps to the correct
+// two's-complement minimum (e.g. -128 for size 1) and out-of-range input
+// throws instead of computing garbage. Unused by the codec's own
+// encode/decode paths, so the wire format is unaffected.
+export function integer_unsign(input: any, size: number): bigint {
+    const n = BigInt(input);
 
-    if (n.greater(bigInt(2).pow(8 * size))) {
+    if (n >= 2n ** BigInt(8 * size)) {
         throw new Error('cannot unsign integer: too big');
     }
 
-    if (n.greater(bigInt(2).pow(8 * size - 1))) {
-        return n.minus(1).xor(bigInt(2).pow(8 * size).minus(1)).negate();
+    if (n >= 2n ** BigInt(8 * size - 1)) {
+        return -((n - 1n) ^ (2n ** BigInt(8 * size) - 1n));
     }
 
     return n;
 }
 
-export function zigzag_encode(input: any): BigInteger {
-    const n = bigInt(input);
+export function zigzag_encode(input: any): bigint {
+    const n = BigInt(input);
 
-    if (n.lesser(0)) {
-        return n.plus(1).multiply(-2).plus(1);
+    if (n < 0n) {
+        return (n + 1n) * -2n + 1n;
     }
 
-    return n.multiply(2);
+    return n * 2n;
 }
 
-export function zigzag_decode(input: any): BigInteger {
-    const n = bigInt(input);
+export function zigzag_decode(input: any): bigint {
+    const n = BigInt(input);
 
-    if (n.mod(2).equals(0)) {
-        return n.divmod(2).quotient;
+    if (n % 2n === 0n) {
+        return n / 2n;
     }
 
-    return n.divmod(2).quotient.multiply(-1).minus(1);
+    return n / 2n * -1n - 1n;
 }
 
 const bs58 = new BaseCoder('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz');
@@ -140,22 +152,22 @@ export function concat_byte_arrays(arr: Uint8Array[]): Uint8Array {
 
 export function int_to_byte_vector(n: any): Uint8Array {
     const bytes: number[] = [];
-    let num = bigInt(n);
+    let num = BigInt(n);
 
-    while (num.notEquals(0)) {
-        bytes.push(num.and(0xFF).toJSNumber());
-        num = num.shiftRight(8);
+    while (num !== 0n) {
+        bytes.push(Number(num & 0xFFn));
+        num = num >> 8n;
     }
 
     return new Uint8Array(bytes);
 }
 
 export function byte_vector_to_int(bytes: Uint8Array): number {
-    let num = bigInt(0);
+    let num = 0n;
 
     for (let i = 0; i < bytes.length; i++) {
-        num = num.plus(bigInt(bytes[i]).shiftLeft(8 * i));
+        num = num + (BigInt(bytes[i]) << BigInt(8 * i));
     }
 
-    return num.toJSNumber();
+    return Number(num);
 }

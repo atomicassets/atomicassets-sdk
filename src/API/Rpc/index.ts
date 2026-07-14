@@ -22,7 +22,6 @@ export default class RpcApi {
 
     private readonly fetchBuiltin: Fetch;
 
-    // tslint:disable-next-line:variable-name
     private readonly _config: Promise<IConfigRow>;
 
     constructor(endpoint: string, contract: string, args: ApiArgs = {rateLimit: 4}) {
@@ -32,7 +31,9 @@ export default class RpcApi {
         if (args.fetch) {
             this.fetchBuiltin = args.fetch;
         } else {
-            this.fetchBuiltin = (<any>global).fetch;
+            // Bound because browser fetch is a Window-branded method: called
+            // bare (this === undefined) it throws Illegal invocation.
+            this.fetchBuiltin = <Fetch>globalThis.fetch.bind(globalThis);
         }
 
         this.queue = new RpcQueue(this, args.rateLimit);

@@ -7,10 +7,12 @@ import VectorSchema from './VectorSchema';
 export interface ISchema {
     serialize(data: any): Uint8Array;
 
-    deserialize(state: SerializationState): Uint8Array;
+    // Yields whatever the node type decodes: a plain object for mappings,
+    // a scalar for values, an array for vectors.
+    deserialize(state: SerializationState): any;
 }
 
-export type SchemaObject = { name: string, type: string, parent?: number };
+export type SchemaObject = { name: string, type: string, parent?: number, mediatype?: string };
 export type MappingAttribute = { name: string, value: ISchema };
 
 type ObjectLookup = { [id: number]: SchemaObject[] };
@@ -65,4 +67,34 @@ export function ObjectSchema(schema: SchemaObject[]): ISchema {
     }
 
     return buildObjectSchema(0, objectLookup);
+}
+
+const objectSchemaCache = new Map<string, ISchema>();
+const OBJECT_SCHEMA_CACHE_MAX_ENTRIES = 500;
+
+// Memoizing ObjectSchema for hot paths that rebuild the same schema per row
+// (e.g. fillers deserializing many deltas against one format). ISchema nodes
+// are stateless (decode state lives in SerializationState), so instances are
+// safe to share. The cache is keyed by the JSON of the format array and is
+// bounded to 500 entries, evicting the oldest entry on overflow.
+export function CachedObjectSchema(schema: SchemaObject[]): ISchema {
+    const key = JSON.stringify(schema);
+
+    let cached = objectSchemaCache.get(key);
+
+    if (!cached) {
+        cached = ObjectSchema(schema);
+
+        if (objectSchemaCache.size >= OBJECT_SCHEMA_CACHE_MAX_ENTRIES) {
+            const oldestKey = objectSchemaCache.keys().next().value;
+
+            if (oldestKey !== undefined) {
+                objectSchemaCache.delete(oldestKey);
+            }
+        }
+
+        objectSchemaCache.set(key, cached);
+    }
+
+    return cached;
 }

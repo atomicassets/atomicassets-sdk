@@ -1,5 +1,3 @@
-import bigInt from 'big-integer';
-
 import DeserializationError from '../../Errors/DeserializationError';
 import SerializationError from '../../Errors/SerializationError';
 import { varint_decode, varint_encode, zigzag_decode, zigzag_encode } from '../Binary';
@@ -17,22 +15,30 @@ export default class VariableIntegerParser implements ITypeParser {
             n = zigzag_decode(n);
         }
 
-        if (n.greaterOrEquals(bigInt(2).pow(this.size * 8 - (this.unsigned ? 0 : 1)))) {
+        if (n >= 2n ** BigInt(this.size * 8 - (this.unsigned ? 0 : 1))) {
             throw new DeserializationError('number \'' + n.toString() + '\' too large for given type');
         }
 
+        if (!this.unsigned && n < -(2n ** BigInt(this.size * 8 - 1))) {
+            throw new DeserializationError('number \'' + n.toString() + '\' too small for given type');
+        }
+
         if (this.size <= 6) {
-            return n.toJSNumber();
+            return Number(n);
         }
 
         return n.toString();
     }
 
     serialize(data: any): Uint8Array {
-        let n = bigInt(data);
+        let n = BigInt(data);
 
-        if (n.greaterOrEquals(bigInt(2).pow(this.size * 8 - (this.unsigned ? 0 : 1)))) {
+        if (n >= 2n ** BigInt(this.size * 8 - (this.unsigned ? 0 : 1))) {
             throw new SerializationError('number \'' + n.toString() + '\' too large for given type');
+        }
+
+        if (!this.unsigned && n < -(2n ** BigInt(this.size * 8 - 1))) {
+            throw new SerializationError('number \'' + n.toString() + '\' too small for given type');
         }
 
         if (!this.unsigned) {

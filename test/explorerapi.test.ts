@@ -1,11 +1,11 @@
 import { expect } from 'chai';
 import ExplorerApi from '../src/API/Explorer';
 
-// tslint:disable-next-line:no-var-requires
-const fetch = require('node-fetch');
+// hits a live third-party endpoint; opt in explicitly so the default suite stays hermetic
+const describeLive = process.env.TEST_LIVE_API ? describe : describe.skip;
 
-describe('Explorer API', () => {
-    const api = new ExplorerApi('https://test.wax.api.atomicassets.io', 'atomicassets', {fetch});
+describeLive('Explorer API', () => {
+    const api = new ExplorerApi('https://test.wax.api.atomicassets.io', 'atomicassets', {});
 
     const exampleAsset = {
         owner: 'testuser2222',

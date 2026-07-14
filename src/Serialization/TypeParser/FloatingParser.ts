@@ -1,8 +1,7 @@
+const fp = require('../../../lib/float');
+
 import SerializationState from '../State';
 import FixedParser from './FixedParser';
-
-// tslint:disable-next-line:no-var-requires
-const fp: any = require('../../../lib/float');
 
 export default class FloatingParser extends FixedParser {
     constructor(private readonly isDouble: boolean) {

@@ -5,11 +5,8 @@ import RpcApi from './index';
 export default class RpcOffer {
     readonly id: string;
 
-    // tslint:disable-next-line:variable-name
     private readonly _data: Promise<IOfferRow>;
-    // tslint:disable-next-line:variable-name
     private readonly _senderAssets: Promise<Array<string | RpcAsset>>;
-    // tslint:disable-next-line:variable-name
     private readonly _recipientAssets: Promise<Array<string | RpcAsset>>;
 
     constructor(private readonly api: RpcApi, id: string, data?: IOfferRow, senderAssets?: RpcAsset[], receiverAssets?: RpcAsset[], cache: boolean = true) {

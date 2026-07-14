@@ -9,13 +9,9 @@ export default class RpcAsset {
     readonly owner: string;
     readonly id: string;
 
-    // tslint:disable-next-line:variable-name
     private readonly _data: Promise<IAssetRow>;
-    // tslint:disable-next-line:variable-name
     private readonly _template: Promise<RpcTemplate | null>;
-    // tslint:disable-next-line:variable-name
     private readonly _collection: Promise<RpcCollection>;
-    // tslint:disable-next-line:variable-name
     private readonly _schema: Promise<RpcSchema>;
 
     constructor(
@@ -120,12 +116,17 @@ export default class RpcAsset {
         return deserialize(row.mutable_serialized_data, await schema.format());
     }
 
+    // template data overrides asset data on key collision: assets inherit
+    // their attributes from the template and cannot override them, so
+    // templateData is applied last (this is canonical AtomicAssets
+    // semantics). Within templateData itself, immutable_data already won
+    // over mutable_data (see Template#data).
     async data(): Promise<object> {
         const mutableData = await this.mutableData();
         const immutableData = await this.immutableData();
 
         const template = await this.template();
-        const templateData = template ? await template.immutableData() : {};
+        const templateData = template ? await template.data() : {};
 
         return Object.assign({}, mutableData, immutableData, templateData);
     }

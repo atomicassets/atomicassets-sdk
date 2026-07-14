@@ -1,3 +1,4 @@
+import DeserializationError from '../Errors/DeserializationError';
 import { concat_byte_arrays, varint_decode, varint_encode } from '../Serialization/Binary';
 import SerializationState from '../Serialization/State';
 import { ISchema } from './index';
@@ -7,7 +8,13 @@ export default class VectorSchema implements ISchema {
     }
 
     deserialize(state: SerializationState): any {
-        const length = varint_decode(state).toJSNumber();
+        const rawLength = varint_decode(state);
+
+        if (rawLength > BigInt(state.data.length - state.position)) {
+            throw new DeserializationError('VectorSchema: length exceeds remaining data');
+        }
+
+        const length = Number(rawLength);
         const array: any[] = [];
 
         for (let i = 0; i < length; i++) {
