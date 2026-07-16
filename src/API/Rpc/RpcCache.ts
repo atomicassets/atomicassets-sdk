@@ -1,6 +1,7 @@
+import { SchemaObject } from '../../Schema';
 import { ICache, MemoryCache } from './BaseCache';
 
-export type SchemaFormat = Array<{ name: string, type: string }>;
+export type SchemaFormat = SchemaObject[];
 
 export interface ICollectionRow {
     collection_name: string;
@@ -25,6 +26,9 @@ export interface ITemplateRow {
     max_supply: number;
     issued_supply: number;
     immutable_serialized_data: Uint8Array;
+    // Joined in from the v2 templates2 table; empty for templates that have
+    // no mutable data row.
+    mutable_serialized_data: Uint8Array;
 }
 
 export interface IAssetRow {
@@ -76,6 +80,7 @@ export default class RpcCache {
     getTemplate(collectionName: string, templateID: string, data?: ITemplateRow): ITemplateRow | null {
         if (data) {
             data.immutable_serialized_data = new Uint8Array(data.immutable_serialized_data);
+            data.mutable_serialized_data = new Uint8Array(data.mutable_serialized_data ?? []);
         }
 
         return this.access<ITemplateRow>('templates', collectionName + ':' + templateID, data);

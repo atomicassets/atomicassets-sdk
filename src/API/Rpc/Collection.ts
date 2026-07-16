@@ -6,7 +6,6 @@ import RpcApi from './index';
 export default class RpcCollection {
     readonly name: string;
 
-    // tslint:disable-next-line:variable-name
     private readonly _data: Promise<ICollectionRow>;
 
     constructor(private readonly api: RpcApi, name: string, data?: ICollectionRow, cache: boolean = true) {

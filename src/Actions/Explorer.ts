@@ -2,7 +2,6 @@ import ExplorerApi from '../API/Explorer';
 import { IConfig } from '../API/Explorer/Objects';
 import { ActionGenerator, EosioActionObject, EosioAuthorizationObject, toAttributeMap } from './Generator';
 
-/* tslint:disable:variable-name */
 
 export default class ExplorerActionGenerator extends ActionGenerator {
     private config: Promise<IConfig>;
@@ -26,7 +25,7 @@ export default class ExplorerActionGenerator extends ActionGenerator {
     async createtempl(
         authorization: EosioAuthorizationObject[], authorized_creator: string,
         collection_name: string, schema_name: string,
-        transferable: boolean, burnable: boolean, max_supply: string, immutable_data: object
+        transferable: boolean, burnable: boolean, max_supply: number, immutable_data: object
     ): Promise<EosioActionObject[]> {
         const schema = await this.api.getSchema(collection_name, schema_name);
 
@@ -40,7 +39,7 @@ export default class ExplorerActionGenerator extends ActionGenerator {
 
     async mintasset(
         authorization: EosioAuthorizationObject[], authorized_minter: string,
-        collection_name: string, schema_name: string, template_id: string,
+        collection_name: string, schema_name: string, template_id: number,
         new_owner: string, immutable_data: object, mutable_data: object, tokens_to_back: string[]
     ): Promise<EosioActionObject[]> {
         const schema = await this.api.getSchema(collection_name, schema_name);

@@ -90,14 +90,16 @@ export default class BaseCoder {
         throw new Error('Non-base' + this.BASE + ' character');
     }
 
-    private decodeUnsafe(source: string): Uint8Array {
+    // Returns null on invalid input (mirroring upstream base-x's undefined) so
+    // decode() can raise; the empty string legitimately decodes to zero bytes.
+    private decodeUnsafe(source: string): Uint8Array | null {
         if (source.length === 0) {
             return new Uint8Array(0);
         }
         let psz = 0;
         // Skip leading spaces.
         if (source[psz] === ' ') {
-            return new Uint8Array(0);
+            return null;
         }
 
         // Skip and count leading '1's.
@@ -118,7 +120,7 @@ export default class BaseCoder {
             let carry = this.BASE_MAP[source.charCodeAt(psz)];
             // Invalid character
             if (carry === 255) {
-                return new Uint8Array(0);
+                return null;
             }
             let i = 0;
             for (let it3 = size - 1; (carry !== 0 || i < length) && (it3 !== -1); it3--, i++) {
@@ -135,7 +137,7 @@ export default class BaseCoder {
 
         // Skip trailing spaces.
         if (source[psz] === ' ') {
-            return new Uint8Array(0);
+            return null;
         }
         // Skip leading zeroes in b256.
         let it4 = size - length;

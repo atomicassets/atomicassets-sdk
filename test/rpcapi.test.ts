@@ -2,12 +2,12 @@ import { expect } from 'chai';
 
 import RpcApi from '../src/API/Rpc';
 
-// tslint:disable-next-line:no-var-requires
-const fetch = require('node-fetch');
+// hits a live third-party endpoint; opt in explicitly so the default suite stays hermetic
+const describeLive = process.env.TEST_LIVE_API ? describe : describe.skip;
 
-describe('RPC API', () => {
+describeLive('RPC API', () => {
     const api = new RpcApi('https://wax.pink.gg', 'atomicassets', {
-        fetch, rateLimit: 4
+        rateLimit: 4
     });
 
     const exampleAsset = {

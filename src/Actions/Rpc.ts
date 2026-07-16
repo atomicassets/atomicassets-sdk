@@ -1,7 +1,6 @@
 import RpcApi from '../API/Rpc';
 import { ActionGenerator, EosioActionObject, EosioAuthorizationObject, toAttributeMap } from './Generator';
 
-/* tslint:disable:variable-name */
 
 export default class RpcActionGenerator extends ActionGenerator {
     constructor(readonly api: RpcApi) {
@@ -23,7 +22,7 @@ export default class RpcActionGenerator extends ActionGenerator {
     async createtempl(
         authorization: EosioAuthorizationObject[], authorized_creator: string,
         collection_name: string, schema_name: string,
-        transferable: boolean, burnable: boolean, max_supply: string, immutable_data: object
+        transferable: boolean, burnable: boolean, max_supply: number, immutable_data: object
     ): Promise<EosioActionObject[]> {
         const schema = await this.api.getSchema(collection_name, schema_name);
 
@@ -37,10 +36,10 @@ export default class RpcActionGenerator extends ActionGenerator {
 
     async mintasset(
         authorization: EosioAuthorizationObject[], authorized_minter: string,
-        collection_name: string, schema_name: string, template_id: string,
+        collection_name: string, schema_name: string, template_id: number,
         new_owner: string, immutable_data: object, mutable_data: object, tokens_to_back: string[]
     ): Promise<EosioActionObject[]> {
-        const template = await this.api.getTemplate(collection_name, template_id);
+        const template = await this.api.getTemplate(collection_name, String(template_id));
 
         const immutable_attribute_map = toAttributeMap(immutable_data, await (await template.schema()).rawFormat());
         const mutable_attribute_map = toAttributeMap(mutable_data, await (await template.schema()).rawFormat());

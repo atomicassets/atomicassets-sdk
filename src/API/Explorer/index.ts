@@ -9,7 +9,7 @@ import {
     ICollectionStats,
     IConfig,
     ILog, IOffer,
-    ISchema,
+    IApiSchema,
     ISchemaStats,
     ITemplate,
     ITemplateStats, ITransfer
@@ -62,7 +62,9 @@ export default class ExplorerApi {
         if (args.fetch) {
             this.fetchBuiltin = args.fetch;
         } else {
-            this.fetchBuiltin = <Fetch>window.fetch;
+            // Bound because browser fetch is a Window-branded method: called
+            // bare (this === undefined) it throws Illegal invocation.
+            this.fetchBuiltin = <Fetch>globalThis.fetch.bind(globalThis);
         }
 
         this.action = (async () => {
@@ -114,7 +116,7 @@ export default class ExplorerApi {
         return await this.fetchEndpoint('/v1/collections/' + name + '/logs', {page, limit, order});
     }
 
-    async getSchemas(options: SchemaApiParams = {}, page: number = 1, limit: number = 100): Promise<ISchema[]> {
+    async getSchemas(options: SchemaApiParams = {}, page: number = 1, limit: number = 100): Promise<IApiSchema[]> {
         return await this.fetchEndpoint('/v1/schemas', {page, limit, ...options});
     }
 
@@ -122,7 +124,7 @@ export default class ExplorerApi {
         return await this.countEndpoint('/v1/schemas', options);
     }
 
-    async getSchema(collection: string, name: string): Promise<ISchema> {
+    async getSchema(collection: string, name: string): Promise<IApiSchema> {
         return await this.fetchEndpoint('/v1/schemas/' + collection + '/' + name, {});
     }
 

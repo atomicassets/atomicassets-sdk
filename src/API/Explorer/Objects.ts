@@ -16,9 +16,17 @@ export interface ILightCollection {
     created_at_time: string;
 }
 
+// The API decorates each schema format field with a resolved per-field
+// mediatype/info (from the on-chain schematypes table or a server-side
+// heuristic); the codec-side SchemaObject deliberately does not carry info.
+export type ApiSchemaFormatField = SchemaObject & {
+    mediatype?: string | null;
+    info?: string | null;
+};
+
 export interface ILightSchema {
     schema_name: string;
-    format: SchemaObject[];
+    format: ApiSchemaFormatField[];
     created_at_block: string;
     created_at_time: string;
 }
@@ -30,6 +38,7 @@ export interface ILightTemplate {
     is_burnable: boolean;
     issued_supply: string;
     immutable_data: {[key: string]: any};
+    mutable_data?: {[key: string]: any};
     created_at_block: string;
     created_at_time: string;
 }
@@ -64,7 +73,7 @@ export interface ICollection extends ILightCollection {
     contract: string;
 }
 
-export interface ISchema extends ILightSchema {
+export interface IApiSchema extends ILightSchema {
     contract: string;
     collection: ILightCollection;
 }
@@ -148,7 +157,7 @@ export interface ITemplateStats {
 
 export interface IAccountStats {
     collections: Array<{collection: ICollection, assets: string}>;
-    templates: Array<{template_id: string, assets: string}>;
+    templates: Array<{collection_name: string, template_id: string, assets: string}>;
     assets: string;
 }
 

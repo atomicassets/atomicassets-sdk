@@ -7,10 +7,8 @@ export default class RpcTemplate {
     readonly collection: string;
     readonly id: string;
 
-    // tslint:disable-next-line:variable-name
     private readonly _data: Promise<ITemplateRow>;
 
-    // tslint:disable-next-line:variable-name
     private readonly _schema: Promise<RpcSchema>;
 
     constructor(private readonly api: RpcApi, collection: string, id: string, data?: ITemplateRow, schema?: RpcSchema, cache: boolean = true) {
@@ -54,6 +52,21 @@ export default class RpcTemplate {
         return deserialize((await this._data).immutable_serialized_data, await schema.format());
     }
 
+    // v2 mutable template data (templates2 table, set via
+    // createtempl2/settempldata); empty for templates without a mutable row.
+    async mutableData(): Promise<object> {
+        const schema = await this._schema;
+
+        return deserialize((await this._data).mutable_serialized_data, await schema.format());
+    }
+
+    // immutable_data wins over mutable_data on key collision: immutable
+    // attributes are set at mint time and mutable data must not be able to
+    // override them, so immutableData is applied last.
+    async data(): Promise<object> {
+        return Object.assign({}, await this.mutableData(), await this.immutableData());
+    }
+
     async isTransferable(): Promise<boolean> {
         return (await this._data).transferable;
     }
@@ -77,6 +90,7 @@ export default class RpcTemplate {
 
             schema: await (await this.schema()).toObject(),
             immutableData: await this.immutableData(),
+            mutableData: await this.mutableData(),
             transferable: await this.isTransferable(),
             burnable: await this.isBurnable(),
             maxSupply: await this.maxSupply(),

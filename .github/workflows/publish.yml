@@ -1,0 +1,53 @@
+name: Publish
+
+# Tag-triggered publish to npm. First publish is gated on maintainer sign-off;
+# the workflow only runs when a v* tag is pushed and NPM_TOKEN is configured.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Required-reviewer environment: a pushed tag queues the publish until a
+    # maintainer approves the run, and npm's trusted publisher config pins to
+    # this environment name so no other workflow can mint a publish token.
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: yarn
+
+      - name: Upgrade npm
+        # Trusted publishing (OIDC) needs npm >= 11.5.1; the Node 22 image
+        # ships npm 10.x.
+        run: npm install -g npm@latest
+
+      - name: Verify tag matches package version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $version" >&2
+            exit 1
+          fi
+
+      - name: Install
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn run build
+
+      - name: Test
+        run: yarn run test
+
+      - name: Publish
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

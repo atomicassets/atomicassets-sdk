@@ -15,14 +15,22 @@ export default class MappingSchema implements ISchema {
         while (state.position < state.data.length) {
             const identifier = varint_decode(state);
 
-            if (identifier.equals(0)) {
+            if (identifier === 0n) {
                 break;
             }
 
-            const attribute = this.getAttribute(identifier.toJSNumber(), !upwardsCompatible);
+            const attribute = this.getAttribute(Number(identifier), !upwardsCompatible);
 
             if (attribute) {
-                object[attribute.name] = attribute.value.deserialize(state);
+                // attribute.name comes from on-chain schema data; use defineProperty so a
+                // field named e.g. __proto__ or constructor sets an own property instead of
+                // invoking a prototype setter.
+                Object.defineProperty(object, attribute.name, {
+                    value: attribute.value.deserialize(state),
+                    enumerable: true,
+                    writable: true,
+                    configurable: true,
+                });
             }
         }
 
