@@ -32,8 +32,8 @@ export function serialize(object: any, schema: ISchema): Uint8Array {
     return data;
 }
 
-// The return is typed for the dominant case — a MappingSchema root decoding
-// to a plain object. A bare ValueSchema/VectorSchema root yields a
+// The return is typed for the dominant case (a MappingSchema root decoding
+// to a plain object). A bare ValueSchema/VectorSchema root yields a
 // scalar/array instead; such callers know their shape and can assert it.
 export function deserialize(data: ByteInput, schema: ISchema): { [key: string]: any } {
     let bytes = toByteArray(data);

@@ -22,6 +22,7 @@
     "url": "git+https://github.com/atomicassets/atomicassets-sdk.git"
   },
   "license": "MIT",
+  "sideEffects": false,
   "version": "2.0.0",
   "engines": {
     "node": ">=20"
@@ -43,7 +44,9 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "build/"
+    "build/",
+    "NOTICE",
+    "licenses/"
   ],
   "scripts": {
     "build": "tsup",

@@ -1,0 +1,12 @@
+This package bundles a vendored IEEE 754 float parsing routine (used for
+serializing float32/float64 values) derived from float.js by Andras Radics,
+Copyright (C) 2017-2019 Andras Radics.
+
+That code is licensed under the Apache License, Version 2.0. The full license
+text ships with this package at licenses/Apache-2.0.txt and is also available
+at http://www.apache.org/licenses/LICENSE-2.0.
+
+The original source and its license header are available in this repository
+at lib/float.js. The build step bundles that file into the published output
+and strips source comments in the process, so this NOTICE preserves the
+required attribution.

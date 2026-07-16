@@ -70,7 +70,7 @@ describe('Packaging', function () {
 
         for (const file of files) {
             expect(
-                /^(package\.json|README\.md|LICENSE|build\/)/.test(file),
+                /^(LICENSE|NOTICE|README\.md|package\.json)$|^(build|licenses)\//.test(file),
                 `unexpected file in tarball: ${file}`
             ).to.equal(true);
         }
