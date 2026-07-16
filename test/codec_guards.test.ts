@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 
 import { CachedObjectSchema, convertAttributeMapToObject, deserialize, ObjectSchema, ParserTypes, serialize, toByteArray } from '../src';
-import { base58_decode, hex_encode, varint_decode } from '../src/Serialization/Binary';
+import { base58_decode, hex_decode, hex_encode, varint_decode } from '../src/Serialization/Binary';
 import SerializationState, { prepare } from '../src/Serialization/State';
 
 describe('Codec guards', () => {
@@ -69,6 +69,24 @@ describe('Codec guards', () => {
 
             expect(() => serialize({img: 'QmS6AaitSdut3Te4fagW6jgfyKL73A1NBSSt3K38vQ0000'}, schema))
                 .to.throw('Non-base58 character');
+        });
+    });
+
+    describe('hex validity', () => {
+        it('throws on non-hex characters and odd-length input', () => {
+            expect(() => hex_decode('zz')).to.throw('invalid hex string');
+            expect(() => hex_decode('0g')).to.throw('invalid hex string');
+            expect(() => hex_decode('abc')).to.throw('invalid hex string');
+        });
+
+        it('still decodes the empty string to zero bytes', () => {
+            expect(hex_decode('')).to.deep.equal(new Uint8Array(0));
+        });
+
+        it('surfaces malformed hex from deserialize instead of corrupted bytes', () => {
+            const schema = ObjectSchema([{name: 'name', type: 'string'}]);
+
+            expect(() => deserialize('not-hex-data', schema)).to.throw('invalid hex string');
         });
     });
 

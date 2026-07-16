@@ -124,7 +124,13 @@ export function base58_encode(data: Uint8Array): string {
 }
 
 export function hex_decode(hex: string): Uint8Array {
-    const bytes = hex.match(/.{1,2}/g);
+    // parseInt would coerce non-hex or odd-length input into NaN bytes that
+    // Uint8Array silently maps to 0, so reject malformed input outright.
+    if (!/^([0-9a-fA-F]{2})*$/.test(hex)) {
+        throw new DeserializationError('invalid hex string');
+    }
+
+    const bytes = hex.match(/.{2}/g);
 
     if (!bytes) {
         return new Uint8Array(0);
