@@ -9,6 +9,48 @@ import * as path from 'path';
 
 const root = path.join(__dirname, '..');
 
+// npm's --json report shares stdout with whatever banner or notice text npm
+// decides to print, and either side can contain brackets. Matching greedily to
+// the last ']' therefore swallows any trailing notice, so walk from the
+// report's opening bracket to its balanced close instead.
+function extractJsonArray(stream: string): string {
+    const start = stream.search(/\[\s*\{/);
+
+    if (start === -1) {
+        return '';
+    }
+
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let index = start; index < stream.length; index++) {
+        const character = stream[index];
+
+        if (escaped) {
+            escaped = false;
+        } else if (inString) {
+            if (character === '\\') {
+                escaped = true;
+            } else if (character === '"') {
+                inString = false;
+            }
+        } else if (character === '"') {
+            inString = true;
+        } else if (character === '[' || character === '{') {
+            depth++;
+        } else if (character === ']' || character === '}') {
+            depth--;
+
+            if (depth === 0) {
+                return stream.slice(start, index + 1);
+            }
+        }
+    }
+
+    return '';
+}
+
 describe('Packaging', function () {
     this.timeout(120000);
 
@@ -50,20 +92,26 @@ describe('Packaging', function () {
         }
     });
 
+    it('reads the pack report even when npm brackets a notice around it', () => {
+        const report = '[\n  {\n    "files": [{"path": "package.json"}],\n    "bundled": []\n  }\n]';
+        const stream = `npm warn config [ignored]\n${report}\nnpm notice publishing [@scope/name@1.0.0]\n`;
+
+        const [parsed] = JSON.parse(extractJsonArray(stream));
+
+        expect(parsed.files.map((file: {path: string}) => file.path)).to.deep.equal(['package.json']);
+    });
+
     it('npm pack ships only the whitelisted files', () => {
         // --ignore-scripts keeps prepack's build output off stdout; the build
         // is already fresh via the pretest hook.
         const output = execSync('npm pack --dry-run --json --ignore-scripts', {cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});
-        // npm pack --json prints a single JSON array of objects; banner or warning
-        // text on stdout can itself contain '[', so anchor on the array-of-objects
-        // opening rather than parsing the whole stream.
-        const jsonMatch = output.match(/\[\s*\{[\s\S]*\]/);
+        const reportJson = extractJsonArray(output);
 
-        if (!jsonMatch) {
-            throw new Error(`npm pack emitted no JSON array: ${output}`);
+        if (!reportJson) {
+            throw new Error(`npm pack emitted no complete JSON array: ${output}`);
         }
 
-        const [report] = JSON.parse(jsonMatch[0]);
+        const [report] = JSON.parse(reportJson);
         const files: string[] = report.files.map((file: {path: string}) => file.path);
 
         expect(files.length).to.be.greaterThan(0);
