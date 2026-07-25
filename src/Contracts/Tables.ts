@@ -88,7 +88,7 @@ export type TemplatesTableRow = {
 };
 
 // on-chain table `templates2` (struct template_mutables_s)
-export type Templates2TableRow = {
+export type MutableTemplatesTableRow = {
     template_id: number;
     schema_name: string;
     mutable_serialized_data: number[];
