@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import {
     ActionBuilder, ActionGenerator, ATOMIC_ATTRIBUTE, AtomicAssetsActionName, AtomicAssetsActionNames, AtomicAssetsActions,
     AttributeMap, AuthorSwapsTableRow, createAttributeMap, EosioAuthorizationObject, EosioSimpleAction,
-    mergeSchemaFormatTypes, SchemaTypesTableRow, Templates2TableRow, toAttributeMap
+    mergeSchemaFormatTypes, MutableTemplatesTableRow, SchemaTypesTableRow, toAttributeMap
 } from '../src';
 
 describe('ActionBuilder', () => {
@@ -120,7 +120,7 @@ describe('Contract table and action-name exports', () => {
         const swap: AuthorSwapsTableRow = {
             collection_name: 'col', current_author: 'a', new_author: 'b', acceptance_date: 1234567890
         };
-        const mutables: Templates2TableRow = {template_id: 1, schema_name: 'schema', mutable_serialized_data: [4, 10, 65]};
+        const mutables: MutableTemplatesTableRow = {template_id: 1, schema_name: 'schema', mutable_serialized_data: [4, 10, 65]};
         const types: SchemaTypesTableRow = {
             schema_name: 'schema', format_type: [{name: 'img', mediatype: 'image/png', info: ''}]
         };
