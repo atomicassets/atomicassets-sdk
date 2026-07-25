@@ -9,17 +9,12 @@ import * as path from 'path';
 
 const root = path.join(__dirname, '..');
 
-// npm's --json report shares stdout with whatever banner or notice text npm
-// decides to print, and either side can contain brackets. Matching greedily to
-// the last ']' therefore swallows any trailing notice, so walk from the
-// report's opening bracket to its balanced close instead.
-function extractJsonArray(stream: string): string {
-    const start = stream.search(/\[\s*\{/);
+interface PackReport {
+    files: Array<{path: string}>;
+}
 
-    if (start === -1) {
-        return '';
-    }
-
+// Returns the balanced JSON value opening at `start`, or '' if it never closes.
+function balancedValueAt(stream: string, start: number): string {
     let depth = 0;
     let inString = false;
     let escaped = false;
@@ -49,6 +44,44 @@ function extractJsonArray(stream: string): string {
     }
 
     return '';
+}
+
+// Neither the report's position in the stream nor its shape can be assumed.
+// Build banners share stdout and print JSON of their own, so the first value is
+// not necessarily the report; and the shape is npm-version dependent, an array
+// of report objects up to npm 11 and an object keyed by package name from npm
+// 12. CI runs the Node image's npm while the publish job upgrades to the latest
+// for trusted publishing, so this test meets both shapes. Identify the report
+// by the only thing stable across them, a member carrying a `files` list.
+function readPackReport(stream: string): PackReport {
+    for (let start = 0; start < stream.length; start++) {
+        if (stream[start] !== '[' && stream[start] !== '{') {
+            continue;
+        }
+
+        const json = balancedValueAt(stream, start);
+
+        if (!json) {
+            continue;
+        }
+
+        let parsed: unknown;
+
+        try {
+            parsed = JSON.parse(json);
+        } catch {
+            continue;
+        }
+
+        const members = Array.isArray(parsed) ? parsed : Object.values(parsed as object);
+        const report = members.find((member) => Array.isArray((member as PackReport)?.files));
+
+        if (report) {
+            return report as PackReport;
+        }
+    }
+
+    throw new Error(`npm pack emitted no report carrying a file list: ${stream}`);
 }
 
 describe('Packaging', function () {
@@ -92,27 +125,37 @@ describe('Packaging', function () {
         }
     });
 
+    it('reads the array-shaped pack report npm 11 and earlier emit', () => {
+        const stream = '[\n  {\n    "files": [{"path": "package.json"}],\n    "bundled": []\n  }\n]\n';
+
+        expect(readPackReport(stream).files.map((file) => file.path)).to.deep.equal(['package.json']);
+    });
+
+    it('reads the object-shaped pack report npm 12 emits', () => {
+        const stream = '{\n  "@scope/name": {\n    "files": [{"path": "package.json"}],\n    "bundled": []\n  }\n}\n';
+
+        expect(readPackReport(stream).files.map((file) => file.path)).to.deep.equal(['package.json']);
+    });
+
     it('reads the pack report even when npm brackets a notice around it', () => {
         const report = '[\n  {\n    "files": [{"path": "package.json"}],\n    "bundled": []\n  }\n]';
         const stream = `npm warn config [ignored]\n${report}\nnpm notice publishing [@scope/name@1.0.0]\n`;
 
-        const [parsed] = JSON.parse(extractJsonArray(stream));
+        expect(readPackReport(stream).files.map((file) => file.path)).to.deep.equal(['package.json']);
+    });
 
-        expect(parsed.files.map((file: {path: string}) => file.path)).to.deep.equal(['package.json']);
+    it('skips a build banner that prints JSON of its own ahead of the report', () => {
+        const report = '[{"files": [{"path": "package.json"}], "bundled": []}]';
+        const stream = `CLI Building entry: {"index":"src/index.ts"}\nCLI tsup v8\n${report}\n`;
+
+        expect(readPackReport(stream).files.map((file) => file.path)).to.deep.equal(['package.json']);
     });
 
     it('npm pack ships only the whitelisted files', () => {
         // --ignore-scripts keeps prepack's build output off stdout; the build
         // is already fresh via the pretest hook.
         const output = execSync('npm pack --dry-run --json --ignore-scripts', {cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});
-        const reportJson = extractJsonArray(output);
-
-        if (!reportJson) {
-            throw new Error(`npm pack emitted no complete JSON array: ${output}`);
-        }
-
-        const [report] = JSON.parse(reportJson);
-        const files: string[] = report.files.map((file: {path: string}) => file.path);
+        const files = readPackReport(output).files.map((file) => file.path);
 
         expect(files.length).to.be.greaterThan(0);
 
