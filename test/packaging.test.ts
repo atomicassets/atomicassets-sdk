@@ -70,6 +70,8 @@ function readPackReport(stream: string): PackReport {
         try {
             parsed = JSON.parse(json);
         } catch {
+            // Balanced but not JSON, so the report may still be nested inside it.
+            // Keep scanning from the next character rather than skipping the span.
             continue;
         }
 
@@ -79,6 +81,11 @@ function readPackReport(stream: string): PackReport {
         if (report) {
             return report as PackReport;
         }
+
+        // A complete JSON value that is not the report, such as a build banner's
+        // own object. Resume after it instead of walking every bracket it
+        // contains, which would make the scan quadratic on a long file list.
+        start += json.length - 1;
     }
 
     throw new Error(`npm pack emitted no report carrying a file list: ${stream}`);
