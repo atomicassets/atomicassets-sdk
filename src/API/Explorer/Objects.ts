@@ -1,3 +1,4 @@
+import { SchemaFormatType } from '../../Actions/Generator';
 import { SchemaObject } from '../../Schema';
 import { OfferState } from './Enums';
 
@@ -76,6 +77,11 @@ export interface ICollection extends ILightCollection {
 export interface IApiSchema extends ILightSchema {
     contract: string;
     collection: ILightCollection;
+
+    // Raw schematypes entries behind format[].mediatype, letting an author tell
+    // authored descriptors from the server's heuristic. Optional: only the
+    // standalone schema routes return it, and 1.x servers never do.
+    types?: SchemaFormatType[];
 }
 
 export interface ITemplate extends ILightTemplate {
