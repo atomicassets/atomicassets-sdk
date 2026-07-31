@@ -162,6 +162,11 @@ const decoded = deserialize(encoded, schema);
 // decoded deep-equals the input object
 ```
 
+## What's new in 2.0.3
+
+- Constructing `ExplorerApi` or `RpcApi` no longer starts a network request, and the same holds for the action generator `ExplorerApi.action` resolves to. The contract config is fetched on first use, shared between concurrent callers, and refetched on the next use after a failure, so an outage while these clients are constructed cannot crash a Node process with an unhandled rejection or leave a client permanently stuck on a failed fetch. Retries are not rate limited by the SDK; a caller polling through an outage owns its own backoff. The RPC row objects (assets, templates, schemas, collections, offers) still fetch eagerly when constructed.
+- `ExplorerApi.action` is now a getter with the same `Promise` type. It no longer appears in `Object.keys` or a spread of the instance, and assigning to it throws instead of silently overwriting.
+
 ## What's new in 2.0.0
 
 - Zero runtime dependencies: native `BigInt` replaces bn.js and the built-in `fetch` replaces node-fetch (a custom `fetch` can still be injected).

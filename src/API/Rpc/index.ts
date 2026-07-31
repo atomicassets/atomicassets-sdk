@@ -22,7 +22,12 @@ export default class RpcApi {
 
     private readonly fetchBuiltin: Fetch;
 
-    private readonly _config: Promise<IConfigRow>;
+    // Created lazily on first use instead of in the constructor: a
+    // constructor that starts network I/O hands out a promise nobody is
+    // guaranteed to await, and on current Node an unawaited rejection kills
+    // the process. Cached so concurrent uses share one fetch, cleared on
+    // failure so a cached rejection cannot poison the instance forever.
+    private _config?: Promise<IConfigRow>;
 
     constructor(endpoint: string, contract: string, args: ApiArgs = {rateLimit: 4}) {
         this.endpoint = endpoint;
@@ -39,26 +44,41 @@ export default class RpcApi {
         this.queue = new RpcQueue(this, args.rateLimit);
         this.cache = new RpcCache();
         this.action = new RpcActionGenerator(this);
+    }
 
-        this._config = new Promise((async (resolve, reject) => {
-            try {
+    private get configPromise(): Promise<IConfigRow> {
+        if (!this._config) {
+            const pending: Promise<IConfigRow> = (async () => {
                 const resp = await this.getTableRows({
                     code: this.contract, scope: this.contract, table: 'config'
                 });
 
                 if (resp.rows.length !== 1) {
-                    return reject('invalid config');
+                    // Kept as the raw string this client has always rejected
+                    // with, not an Error: callers may match on the value.
+                    return Promise.reject('invalid config');
                 }
 
-                return resolve(resp.rows[0]);
-            } catch (e) {
-                reject(e);
-            }
-        }));
+                return resp.rows[0];
+            })();
+
+            // Clears the cache so the next use retries, and doubles as the
+            // guaranteed handler that keeps an unawaited use from ever
+            // rejecting unhandled.
+            pending.catch(() => {
+                if (this._config === pending) {
+                    this._config = undefined;
+                }
+            });
+
+            this._config = pending;
+        }
+
+        return this._config;
     }
 
     async config(): Promise<IConfigRow> {
-        return await this._config;
+        return await this.configPromise;
     }
 
     async getAsset(owner: string, id: string, cache: boolean = true): Promise<RpcAsset> {
