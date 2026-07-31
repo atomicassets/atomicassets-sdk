@@ -48,7 +48,12 @@ function buildDataOptions(options: {[key: string]: any}, data: DataOptions): {[k
 }
 
 export default class ExplorerApi {
-    readonly action: Promise<ExplorerActionGenerator>;
+    // Created lazily on first access instead of in the constructor: a
+    // constructor that starts network I/O hands out a promise nobody is
+    // guaranteed to await, and on current Node an unawaited rejection kills
+    // the process. Cached so concurrent accesses share one fetch, cleared on
+    // failure so a cached rejection cannot poison the instance forever.
+    private _action?: Promise<ExplorerActionGenerator>;
 
     private readonly endpoint: string;
     private readonly namespace: string;
@@ -66,10 +71,27 @@ export default class ExplorerApi {
             // bare (this === undefined) it throws Illegal invocation.
             this.fetchBuiltin = <Fetch>globalThis.fetch.bind(globalThis);
         }
+    }
 
-        this.action = (async () => {
-            return new ExplorerActionGenerator((await this.getConfig()).contract, this);
-        })();
+    get action(): Promise<ExplorerActionGenerator> {
+        if (!this._action) {
+            const pending = (async () => {
+                return new ExplorerActionGenerator((await this.getConfig()).contract, this);
+            })();
+
+            // Clears the cache so the next access retries, and doubles as the
+            // guaranteed handler that keeps an unawaited access from ever
+            // rejecting unhandled.
+            pending.catch(() => {
+                if (this._action === pending) {
+                    this._action = undefined;
+                }
+            });
+
+            this._action = pending;
+        }
+
+        return this._action;
     }
 
     async getConfig(): Promise<IConfig> {

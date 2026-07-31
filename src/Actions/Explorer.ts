@@ -4,12 +4,34 @@ import { ActionGenerator, EosioActionObject, EosioAuthorizationObject, toAttribu
 
 
 export default class ExplorerActionGenerator extends ActionGenerator {
-    private config: Promise<IConfig>;
+    // Created lazily on first use instead of in the constructor: a
+    // constructor that starts network I/O hands out a promise nobody is
+    // guaranteed to await, and on current Node an unawaited rejection kills
+    // the process. Cached so concurrent uses share one fetch, cleared on
+    // failure so a cached rejection cannot poison the instance forever.
+    private _config?: Promise<IConfig>;
 
     constructor(contract: string, readonly api: ExplorerApi) {
         super(contract);
+    }
 
-        this.config = api.getConfig();
+    private get config(): Promise<IConfig> {
+        if (!this._config) {
+            const pending = this.api.getConfig();
+
+            // Clears the cache so the next use retries, and doubles as the
+            // guaranteed handler that keeps an unawaited use from ever
+            // rejecting unhandled.
+            pending.catch(() => {
+                if (this._config === pending) {
+                    this._config = undefined;
+                }
+            });
+
+            this._config = pending;
+        }
+
+        return this._config;
     }
 
     async createcol(
