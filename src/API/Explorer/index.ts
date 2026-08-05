@@ -29,6 +29,14 @@ type ApiArgs = { fetch?: Fetch };
 
 export type DataOptions = Array<{key: string, value: any, type?: string}>;
 
+// Asset ids, collection/schema/template names and account names reach the path
+// straight from the caller. Left raw, a value carrying `/`, `?` or `#` escapes
+// its own segment and rewrites the request target, so every one is encoded
+// where the path is assembled rather than in either fetch branch.
+function encodeSegment(value: string): string {
+    return encodeURIComponent(value);
+}
+
 function buildDataOptions(options: {[key: string]: any}, data: DataOptions): {[key: string]: any} {
     const dataFields: {[key: string]: string} = {};
 
@@ -107,15 +115,15 @@ export default class ExplorerApi {
     }
 
     async getAsset(id: string): Promise<IAsset> {
-        return await this.fetchEndpoint('/v1/assets/' + id, {});
+        return await this.fetchEndpoint('/v1/assets/' + encodeSegment(id), {});
     }
 
     async getAssetStats(id: string): Promise<IAssetStats> {
-        return await this.fetchEndpoint('/v1/assets/' + id + '/stats', {});
+        return await this.fetchEndpoint('/v1/assets/' + encodeSegment(id) + '/stats', {});
     }
 
     async getAssetLogs(id: string, page: number = 1, limit: number = 100, order: string = 'desc'): Promise<ILog[]> {
-        return await this.fetchEndpoint('/v1/assets/' + id + '/logs', {page, limit, order});
+        return await this.fetchEndpoint('/v1/assets/' + encodeSegment(id) + '/logs', {page, limit, order});
     }
 
     async getCollections(options: CollectionApiParams = {}, page: number = 1, limit: number = 100): Promise<ICollection[]> {
@@ -127,15 +135,15 @@ export default class ExplorerApi {
     }
 
     async getCollection(name: string): Promise<ICollection> {
-        return await this.fetchEndpoint('/v1/collections/' + name, {});
+        return await this.fetchEndpoint('/v1/collections/' + encodeSegment(name), {});
     }
 
     async getCollectionStats(name: string): Promise<ICollectionStats> {
-        return await this.fetchEndpoint('/v1/collections/' + name + '/stats', {});
+        return await this.fetchEndpoint('/v1/collections/' + encodeSegment(name) + '/stats', {});
     }
 
     async getCollectionLogs(name: string, page: number = 1, limit: number = 100, order: string = 'desc'): Promise<ILog[]> {
-        return await this.fetchEndpoint('/v1/collections/' + name + '/logs', {page, limit, order});
+        return await this.fetchEndpoint('/v1/collections/' + encodeSegment(name) + '/logs', {page, limit, order});
     }
 
     async getSchemas(options: SchemaApiParams = {}, page: number = 1, limit: number = 100): Promise<IApiSchema[]> {
@@ -147,15 +155,15 @@ export default class ExplorerApi {
     }
 
     async getSchema(collection: string, name: string): Promise<IApiSchema> {
-        return await this.fetchEndpoint('/v1/schemas/' + collection + '/' + name, {});
+        return await this.fetchEndpoint('/v1/schemas/' + encodeSegment(collection) + '/' + encodeSegment(name), {});
     }
 
     async getSchemaStats(collection: string, name: string): Promise<ISchemaStats> {
-        return await this.fetchEndpoint('/v1/schemas/' + collection + '/' + name + '/stats', {});
+        return await this.fetchEndpoint('/v1/schemas/' + encodeSegment(collection) + '/' + encodeSegment(name) + '/stats', {});
     }
 
     async getSchemaLogs(collection: string, name: string, page: number = 1, limit: number = 100, order: string = 'desc'): Promise<ILog[]> {
-        return await this.fetchEndpoint('/v1/schemas/' + collection + '/' + name + '/logs', {page, limit, order});
+        return await this.fetchEndpoint('/v1/schemas/' + encodeSegment(collection) + '/' + encodeSegment(name) + '/logs', {page, limit, order});
     }
 
     async getTemplates(options: TemplateApiParams = {}, page: number = 1, limit: number = 100, data: DataOptions = []): Promise<ITemplate[]> {
@@ -167,15 +175,15 @@ export default class ExplorerApi {
     }
 
     async getTemplate(collection: string, id: string): Promise<ITemplate> {
-        return await this.fetchEndpoint('/v1/templates/' + collection + '/' + id, {});
+        return await this.fetchEndpoint('/v1/templates/' + encodeSegment(collection) + '/' + encodeSegment(id), {});
     }
 
     async getTemplateStats(collection: string, name: string): Promise<ITemplateStats> {
-        return await this.fetchEndpoint('/v1/templates/' + collection + '/' + name + '/stats', {});
+        return await this.fetchEndpoint('/v1/templates/' + encodeSegment(collection) + '/' + encodeSegment(name) + '/stats', {});
     }
 
     async getTemplateLogs(collection: string, id: string, page: number = 1, limit: number = 100, order: string = 'desc'): Promise<ILog[]> {
-        return await this.fetchEndpoint('/v1/templates/' + collection + '/' + id + '/logs', {page, limit, order});
+        return await this.fetchEndpoint('/v1/templates/' + encodeSegment(collection) + '/' + encodeSegment(id) + '/logs', {page, limit, order});
     }
 
     async getTransfers(options: TransferApiParams = {}, page: number = 1, limit: number = 100): Promise<ITransfer[]> {
@@ -195,7 +203,7 @@ export default class ExplorerApi {
     }
 
     async getOffer(id: string): Promise<IOffer> {
-        return await this.fetchEndpoint('/v1/offers/' + id, {});
+        return await this.fetchEndpoint('/v1/offers/' + encodeSegment(id), {});
     }
 
     async getAccounts(options: AccountApiParams = {}, page: number = 1, limit: number = 100): Promise<Array<{account: string, assets: string}>> {
@@ -211,15 +219,15 @@ export default class ExplorerApi {
     }
 
     async getAccount(account: string, options: GreylistParams & HideOffersParams = {}): Promise<IAccountStats> {
-        return await this.fetchEndpoint('/v1/accounts/' + account, options);
+        return await this.fetchEndpoint('/v1/accounts/' + encodeSegment(account), options);
     }
 
     async getAccountCollection(account: string, collection: string): Promise<IAccountCollectionStats> {
-        return await this.fetchEndpoint('/v1/accounts/' + account + '/' + collection, {});
+        return await this.fetchEndpoint('/v1/accounts/' + encodeSegment(account) + '/' + encodeSegment(collection), {});
     }
 
     async getAccountBurns(account: string, options: GreylistParams & HideOffersParams = {}): Promise<IAccountStats> {
-        return await this.fetchEndpoint('/v1/burns/' + account, options);
+        return await this.fetchEndpoint('/v1/burns/' + encodeSegment(account), options);
     }
 
     async fetchEndpoint<T>(path: string, args: any): Promise<T> {
@@ -237,7 +245,10 @@ export default class ExplorerApi {
                 value = 'false';
             }
 
-            return key + '=' + encodeURIComponent(value);
+            // The key side is caller-supplied too: buildDataOptions splices
+            // row.key and row.type into it, so an unencoded `&` or `=` there
+            // would smuggle extra parameters into the query.
+            return encodeURIComponent(key) + '=' + encodeURIComponent(value);
         }).join('&');
 
         try {

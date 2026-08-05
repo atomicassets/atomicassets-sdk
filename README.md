@@ -162,6 +162,10 @@ const decoded = deserialize(encoded, schema);
 // decoded deep-equals the input object
 ```
 
+## What's new in 2.0.4
+
+- Explorer path segments and query keys are percent-encoded. An asset id, collection, schema, template or account name carrying `/`, `?` or `#` used to escape its place in the URL and send the request somewhere else; a data-option key carrying `&` or `=` could append query parameters of its own. Both the query and the long-query POST fallback are covered.
+
 ## What's new in 2.0.3
 
 - Constructing `ExplorerApi` or `RpcApi` no longer starts a network request, and the same holds for the action generator `ExplorerApi.action` resolves to. The contract config is fetched on first use, shared between concurrent callers, and refetched on the next use after a failure, so an outage while these clients are constructed cannot crash a Node process with an unhandled rejection or leave a client permanently stuck on a failed fetch. Retries are not rate limited by the SDK; a caller polling through an outage owns its own backoff. The RPC row objects (assets, templates, schemas, collections, offers) still fetch eagerly when constructed.
