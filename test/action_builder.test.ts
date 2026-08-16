@@ -78,6 +78,76 @@ describe('ActionBuilder', () => {
             expect(await generated).to.deep.equal([{...action, authorization}]);
         }
     });
+
+    // backasset is deprecated because v2 disables it behind a check() guard,
+    // but it still executes on chains that have not migrated, so it must keep
+    // working until a major version drops it. This pins its presence so a
+    // later cleanup that removes it from the builder, the generator, or the
+    // action-name list has to change a test that states the reason.
+    it('still exposes the deprecated backasset action', () => {
+        expect(builder.backasset).to.be.a('function');
+        expect(generator.backasset).to.be.a('function');
+        expect(AtomicAssetsActionNames).to.include.members(['backasset', 'logbackasset']);
+    });
+
+});
+
+describe('ActionBuilder numeric guards', () => {
+    const builder = new ActionBuilder('atomicassets');
+    const generator = new ActionGenerator('atomicassets');
+    const authorization: EosioAuthorizationObject[] = [{actor: 'creator', permission: 'active'}];
+
+    // NaN and Infinity are the shape worth pinning: JSON.stringify writes them
+    // as null, so before the guard these built an action whose numeric field
+    // had silently become null rather than either throwing or carrying the
+    // value the caller passed.
+    it('rejects a non-finite value on every numeric field, naming it', () => {
+        expect(() => builder.createtempl('c', 'col', 'sch', true, true, NaN, [])).to.throw('max_supply');
+        expect(() => builder.createtempl2('c', 'col', 'sch', true, true, Infinity, [], [])).to.throw('max_supply');
+        expect(() => builder.redtemplmax('e', 'col', 1, NaN)).to.throw('new_max_supply');
+        expect(() => builder.mintasset('m', 'col', 'sch', NaN, 'o', [], [], [])).to.throw('template_id');
+        expect(() => builder.deltemplate('e', 'col', -Infinity)).to.throw('template_id');
+        expect(() => builder.locktemplate('e', 'col', NaN)).to.throw('template_id');
+        expect(() => builder.settempldata('e', 'col', NaN, [])).to.throw('template_id');
+        expect(() => builder.createcol('a', 'col', true, [], [], NaN, [])).to.throw('market_fee');
+        expect(() => builder.setmarketfee('col', Infinity)).to.throw('market_fee');
+    });
+
+    it('rejects a fractional or negative value where the ABI field is uint32', () => {
+        expect(() => builder.createtempl('c', 'col', 'sch', true, true, 1.5, [])).to.throw('max_supply');
+        expect(() => builder.createtempl('c', 'col', 'sch', true, true, -1, [])).to.throw('max_supply');
+        expect(() => builder.createtempl('c', 'col', 'sch', true, true, 4294967296, [])).to.throw('max_supply');
+        expect(() => builder.redtemplmax('e', 'col', 1, -1)).to.throw('new_max_supply');
+    });
+
+    // template_id is int32, and -1 is how the contract and the README both
+    // spell "no template", so the signed range is the whole bound.
+    it('keeps the -1 template_id sentinel and the uint32 edges', () => {
+        expect(builder.mintasset('m', 'col', 'sch', -1, 'o', [], [], []).data.template_id).to.equal(-1);
+        expect(builder.createtempl('c', 'col', 'sch', true, true, 0, []).data.max_supply).to.equal(0);
+        expect(builder.createtempl('c', 'col', 'sch', true, true, 4294967295, []).data.max_supply).to.equal(4294967295);
+        expect(() => builder.mintasset('m', 'col', 'sch', 1.5, 'o', [], [], [])).to.throw('template_id');
+    });
+
+    // market_fee is float64, so a fraction is the point of the field; only
+    // finiteness is checkable here. What fee the contract accepts is the
+    // chain's rule and it returns a legible error for it.
+    it('passes a fractional market_fee through untouched', () => {
+        expect(builder.createcol('a', 'col', true, [], [], 0.05, []).data.market_fee).to.equal(0.05);
+        expect(builder.setmarketfee('col', 5).data.market_fee).to.equal(5);
+    });
+
+    it('guards the generator through the same builder', async () => {
+        let message = '';
+
+        try {
+            await generator.createtempl(authorization, 'c', 'col', 'sch', true, true, NaN, []);
+        } catch (error) {
+            message = (error as Error).message;
+        }
+
+        expect(message).to.contain('max_supply');
+    });
 });
 
 describe('createAttributeMap and ATOMIC_ATTRIBUTE', () => {
