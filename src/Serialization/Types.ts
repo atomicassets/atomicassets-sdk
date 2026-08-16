@@ -7,30 +7,35 @@ import IPFSParser from './TypeParser/IPFSParser';
 import StringParser from './TypeParser/StringParser';
 import VariableIntegerParser from './TypeParser/VariableIntegerParser';
 
+// Every parser constructor here only stores its arguments, so each `new` is
+// annotated pure. That is what lets a bundler drop this table, and the parser
+// classes behind it, out of a consumer that only builds actions: the package
+// ships as one flattened ESM module, where an unannotated `new` in a top-level
+// initializer anchors its whole class into every bundle regardless of use.
 // tslint:disable:object-literal-sort-keys
 export const ParserTypes: { [id: string]: ITypeParser } = {
-    int8: new VariableIntegerParser(1, false),
-    int16: new VariableIntegerParser(2, false),
-    int32: new VariableIntegerParser(4, false),
-    int64: new VariableIntegerParser(8, false),
+    int8: /* @__PURE__ */ new VariableIntegerParser(1, false),
+    int16: /* @__PURE__ */ new VariableIntegerParser(2, false),
+    int32: /* @__PURE__ */ new VariableIntegerParser(4, false),
+    int64: /* @__PURE__ */ new VariableIntegerParser(8, false),
 
-    uint8: new VariableIntegerParser(1, true),
-    uint16: new VariableIntegerParser(2, true),
-    uint32: new VariableIntegerParser(4, true),
-    uint64: new VariableIntegerParser(8, true),
+    uint8: /* @__PURE__ */ new VariableIntegerParser(1, true),
+    uint16: /* @__PURE__ */ new VariableIntegerParser(2, true),
+    uint32: /* @__PURE__ */ new VariableIntegerParser(4, true),
+    uint64: /* @__PURE__ */ new VariableIntegerParser(8, true),
 
-    fixed8: new FixedIntegerParser(1),
-    fixed16: new FixedIntegerParser(2),
-    fixed32: new FixedIntegerParser(4),
-    fixed64: new FixedIntegerParser(8),
+    fixed8: /* @__PURE__ */ new FixedIntegerParser(1),
+    fixed16: /* @__PURE__ */ new FixedIntegerParser(2),
+    fixed32: /* @__PURE__ */ new FixedIntegerParser(4),
+    fixed64: /* @__PURE__ */ new FixedIntegerParser(8),
 
-    bool: new BooleanParser(),
+    bool: /* @__PURE__ */ new BooleanParser(),
 
-    bytes: new ByteParser(),
-    string: new StringParser(),
-    image: new StringParser(),
+    bytes: /* @__PURE__ */ new ByteParser(),
+    string: /* @__PURE__ */ new StringParser(),
+    image: /* @__PURE__ */ new StringParser(),
 
-    ipfs: new IPFSParser(),
-    float: new FloatingParser(false),
-    double: new FloatingParser(true)
+    ipfs: /* @__PURE__ */ new IPFSParser(),
+    float: /* @__PURE__ */ new FloatingParser(false),
+    double: /* @__PURE__ */ new FloatingParser(true)
 };

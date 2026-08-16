@@ -15,7 +15,11 @@ describe('convertAttributeMapToObject', () => {
         });
     });
 
-    it('converts the v2 {first, second} pair shape', () => {
+    // {first, second} is what CDT 4.1 and newer abigen emits for the pair
+    // struct, not a contract version's shape; the release ABI is patched back
+    // to key/value. An ABI from an unpatched build of either version decodes
+    // to this spelling, so both are accepted.
+    it('converts the {first, second} pair shape an unpatched ABI produces', () => {
         const data: DecodedAttributeMap = [
             {first: 'name', second: ['string', 'Founder Card']},
             {first: 'rating', second: ['uint8', 5]}

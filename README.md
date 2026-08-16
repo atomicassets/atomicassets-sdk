@@ -116,6 +116,22 @@ await session.transact({
 
 `ActionBuilder` is synchronous and returns authorization-free `{account, name, data}` objects, one method per contract action. If you would rather have authorization attached for you, `ActionGenerator` wraps the same builders and returns fully-authorized `EosioActionObject` arrays.
 
+### Contract versions
+
+This package targets AtomicAssets v2, and the chains are migrating to it. v2 is a superset of v1, so every action v1 already had is spelled identically and works either way. The difference shows up only at the edges of the surface, where a chain that has not migrated yet will not accept all of it.
+
+Read the version from the contract's own `tokenconfigs` table to know where a chain stands. The wax and jungle4 testnets serve v2 and its 47 actions, while the mainnets are still on v1's 35: wax and eos report 1.2.3, xpr reports 1.3.1. Of the networks listed above, that puts `wax-testnet` and `jungle4` on v2, and `wax`, `vaulta`, `xpr` and `xpr-testnet` on v1 until they migrate.
+
+Ten builders target actions v2 introduced: `acceptauswap`, `createauswap`, `rejectauswap`, `createtempl2`, `deltemplate`, `redtemplmax`, `settempldata`, `setschematyp`, `setlastpayer` and `setrampayer`. A chain that has not migrated has no such action and rejects the transaction as unknown, so check the version before sending one of these at a mainnet endpoint.
+
+Native token backing runs the other way, as a removal rather than an addition. v2 disables it, so `backasset` is deprecated and aborts there, and `mintasset` aborts on a non-empty `tokens_to_back`. Both still execute on a chain that has not migrated, which means a call that works is a chain that has not arrived yet, not a supported path to build on.
+
+`init`, `admincoledit`, `setversion` and `addconftoken` are contract administration, each guarded by `require_auth(get_self())`. The builders emit them for a caller that holds that authority, but no ordinary account can execute them.
+
+### Editing data replaces it
+
+`setcoldata`, `setassetdata`, `settempldata` and `setschematyp` each take the map you pass as the complete new value. The contract serializes exactly what it is handed over the existing row, so any attribute you leave out is dropped rather than kept, and `settempldata` with an empty map erases the row. No contract check compares your map against what was stored, so a read-modify-write that forgets to merge destroys the omitted attributes and still reports success. Read the current data, merge your change into it, and send the whole map.
+
 ### Minting
 
 Minting takes more arguments because the contract does, and attribute data has to be typed on the way in:
@@ -144,6 +160,16 @@ const mint = builder.mintasset(
 
 `createAttributeMap` is what keeps you from hand-building the contract's attribute pairs and getting the types wrong.
 
+`tokens_to_back` is empty above deliberately. Native backing is deprecated, and v2 aborts a mint that supplies any; see [Contract versions](#contract-versions).
+
+### What the builders validate
+
+Almost nothing, deliberately. A builder emits the action data you hand it, and the chain is what decides whether a name exists, an account is authorized, or a fee is allowed; its errors say which.
+
+The exception is the numeric parameters, whose bad values are the only input that neither throws nor survives the trip. Action data reaches a signing library as JSON, and `NaN` and `Infinity` have no JSON form, so `max_supply: NaN` arrives as `"max_supply": null` with the mistake already erased. Each numeric parameter is therefore checked against the ABI type of the field it fills, and the error names that field: `template_id` must be an int32, which keeps `-1` available as the "no template" sentinel; `max_supply` and `new_max_supply` must be uint32, so a fractional or negative supply is refused here rather than on chain; `market_fee` is a float64, so only its finiteness is checkable.
+
+What the contract additionally requires of a value, such as the market fee a collection may charge, stays the chain's to enforce, and it returns a legible error for it. Bound anything else you read from a response before you trust it.
+
 ## Working with attribute data directly
 
 Most code never needs this. The API clients decode attributes for you, and `asset.data` is the result. The codec is exported for the cases where you are handling raw contract data yourself:
@@ -161,6 +187,13 @@ const encoded = serialize({ name: 'Dragon', level: 12, tags: ['fire'] }, schema)
 const decoded = deserialize(encoded, schema);
 // decoded deep-equals the input object
 ```
+
+## What's new in 2.1.0
+
+- Numeric parameters on `ActionBuilder` and `ActionGenerator` are checked against the ABI type of the field they fill and throw naming that field. A `NaN` or `Infinity` used to reach the action data as `null`, and a fractional or negative `max_supply` used to reach the chain intact. See "What the builders validate" above for where the line sits.
+- `transfer` names its first two parameters `from` and `to`, after the ABI fields they become. The parameters are positional, so no call changes.
+- `backasset` is deprecated on both the builder and the generator, and `mintasset` carries the same deprecation on its `tokens_to_back` parameter. AtomicAssets v2 disables native backing behind a `check()` guard, so both abort there while still executing on a chain that has not migrated.
+- The ESM build tree-shakes: importing only `ActionBuilder` no longer drags in the base58 coder, the parser table, or the action-name map. What remains of the codec in that case is the vendored float helper, which the single-file build cannot yet drop.
 
 ## What's new in 2.0.4
 
@@ -186,12 +219,12 @@ const decoded = deserialize(encoded, schema);
 - Package name: `npm install @atomichub/atomicassets` and change imports from `'atomicassets'` to `'@atomichub/atomicassets'`.
 - Deep imports such as `atomicassets/build/API/Explorer/Params` are replaced by root exports: `import { AssetsApiParams } from '@atomichub/atomicassets'`.
 - `max_supply` and `template_id` are numbers where the contract ABI defines them as numeric; 64-bit id fields (asset ids, offer ids) remain strings.
-- `AttributeMap` entries are strictly typed as `{ key, value: [type, value] }`; use `createAttributeMap` or `toAttributeMap` instead of hand-building entries. Decoding accepts both `{key, value}` and v2 `{first, second}` pairs.
+- `AttributeMap` entries are strictly typed as `{ key, value: [type, value] }`; use `createAttributeMap` or `toAttributeMap` instead of hand-building entries. Decoding also accepts `{first, second}`, which is not a contract version's shape but what CDT 4.1 and newer abigen emits for the pair struct before the release build patches it back to `key`/`value`.
 - Node.js 20 or newer is required.
 
 ## Credits and license
 
-Fork of [atomicassets-js](https://github.com/pinknetworkx/atomicassets-js) by pink.network, updated for the v2 AtomicAssets contract. Maintained by AtomicHub.
+Fork of [atomicassets-js](https://github.com/pinknetworkx/atomicassets-js) by pink.network, updated for the v2 AtomicAssets contract; see [Contract versions](#contract-versions) for where each chain stands in the migration to it. Maintained by AtomicHub.
 
 The market-side companion package is [@atomichub/atomicmarket](https://github.com/atomicassets/atomicmarket-sdk).
 

@@ -55,6 +55,9 @@ export type AtomicAssetsActionName = typeof AtomicAssetsActionNames[number];
 // Name-keyed map of the same actions, for consumers that reference actions as
 // a value namespace (AtomicAssetsActions.settempldata). Mirrors the shape of
 // @atomichub/atomicmarket's AtomicMarketActions.
-export const AtomicAssetsActions = Object.fromEntries(
-    AtomicAssetsActionNames.map((name) => [name, name])
+// Annotated pure so a consumer that never names an action constant does not
+// carry this map and the name list it is built from; the derivation reads only
+// the literal above.
+export const AtomicAssetsActions = /* @__PURE__ */ Object.fromEntries(
+    /* @__PURE__ */ AtomicAssetsActionNames.map((name) => [name, name])
 ) as { readonly [K in AtomicAssetsActionName]: K };

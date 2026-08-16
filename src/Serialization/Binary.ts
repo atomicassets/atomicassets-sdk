@@ -113,7 +113,12 @@ export function zigzag_decode(input: any): bigint {
     return n / 2n * -1n - 1n;
 }
 
-const bs58 = new BaseCoder('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz');
+// The shared base58 coder. Its constructor only derives lookup tables from the
+// alphabet literal, so the annotation is honest, and it is what lets a bundler
+// drop the coder when the consumer never decodes base58. The single-file ESM
+// build leaves bundlers with statement-level tree shaking only, so an
+// unannotated `new` here anchors BaseCoder into every consumer bundle.
+const bs58 = /* @__PURE__ */ new BaseCoder('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz');
 
 export function base58_decode(data: string): Uint8Array {
     return bs58.decode(data);

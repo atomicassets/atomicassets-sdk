@@ -116,6 +116,18 @@ describe('Packaging', function () {
         execFileSync(process.execPath, ['-e', script, path.join(root, 'build', 'index.mjs')], {cwd: root});
     });
 
+    // Parameter names are a real part of this surface: they are what editor
+    // signature help shows, and transfer's used to be account_from/account_to
+    // against ABI fields named from/to, so the one action people call most was
+    // the one whose signature did not say what it emits. Only the declaration
+    // file carries them to consumers, which is why this is asserted here.
+    it('the declaration file names transfer after its ABI fields', () => {
+        const declarations = fs.readFileSync(path.join(root, 'build', 'index.d.ts'), 'utf8');
+
+        expect(declarations).to.match(/transfer\(\s*from:\s*string,\s*to:\s*string,\s*asset_ids:\s*string\[\],\s*memo:\s*string\s*\)/);
+        expect(declarations).to.not.contain('account_from');
+    });
+
     it('every types path declared in package.json exports exists on disk', () => {
         const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
         const exportsMap = pkg.exports['.'];
