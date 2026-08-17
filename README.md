@@ -190,29 +190,89 @@ const decoded = deserialize(encoded, schema);
 
 ## What's new in 2.1.0
 
-- Numeric parameters on `ActionBuilder` and `ActionGenerator` are checked against the ABI type of the field they fill and throw naming that field. A `NaN` or `Infinity` used to reach the action data as `null`, and a fractional or negative `max_supply` used to reach the chain intact. See "What the builders validate" above for where the line sits.
-- `transfer` names its first two parameters `from` and `to`, after the ABI fields they become. The parameters are positional, so no call changes.
-- `backasset` is deprecated on both the builder and the generator, and `mintasset` carries the same deprecation on its `tokens_to_back` parameter. AtomicAssets v2 disables native backing behind a `check()` guard, so both abort there while still executing on a chain that has not migrated.
-- The ESM build tree-shakes: importing only `ActionBuilder` no longer drags in the base58 coder, the parser table, or the action-name map. What remains of the codec in that case is the vendored float helper, which the single-file build cannot yet drop.
+Validates the builders' numeric parameters and deprecates native asset backing.
+
+### Breaking changes
+
+- Numeric parameters on `ActionBuilder` and `ActionGenerator` are checked against the ABI type of the field they fill and throw naming that field. A `NaN` or `Infinity` used to reach the action data as `null`, and a fractional or negative `max_supply` used to reach the chain intact. `template_id` still accepts `-1`, the contract's no-template sentinel, because the ABI type is signed. (#16)
+
+### Deprecations
+
+- `backasset` is deprecated on both the builder and the generator, and `mintasset` carries the same deprecation on its `tokens_to_back` parameter. AtomicAssets v2 disables native backing behind a `check()` guard, so both abort there while still executing on a chain that has not migrated. (#16)
+
+### Other changes
+
+- Value ranges the contract itself enforces stay unchecked, so no guard is stricter than the chain. (#16)
+- `transfer` names its first two parameters `from` and `to`, after the ABI fields they become. The parameters are positional, so no call changes. (#16)
+- Ten builders that target actions AtomicAssets v2 introduced, and the four that require the contract's own authority, are marked in the README. (#16)
+- The ESM build tree-shakes. Importing only `ActionBuilder` no longer drags in the base58 coder, the parser table, or the action-name map, taking a browser bundle that imports only the builder from 14,663 to 9,272 minified bytes. (#16)
 
 ## What's new in 2.0.4
 
-- Explorer path segments and query keys are percent-encoded. An asset id, collection, schema, template or account name carrying `/`, `?` or `#` used to escape its place in the URL and send the request somewhere else; a data-option key carrying `&` or `=` could append query parameters of its own. Both the query and the long-query POST fallback are covered.
+### Bug fixes
+
+- The Explorer client percent-encodes caller-supplied path ids and custom data-filter keys, across the sixteen path-building methods and the query-string builder. An asset id, collection, schema, template, offer, or account name carrying `/`, `?`, `#`, `&`, or `=` used to escape its own segment and reshape the request, on the GET path and the long-query POST fallback alike. Hostile input now stays a value. (#14)
+
+### Other changes
+
+- Typed data filters travel as `data%3Anumber.field` rather than `data:number.field`. The API's query parser percent-decodes keys before matching, so the server sees the same key. The plain `data.field` form is unchanged. (#14)
 
 ## What's new in 2.0.3
 
-- Constructing `ExplorerApi` or `RpcApi` no longer starts a network request, and the same holds for the action generator `ExplorerApi.action` resolves to. The contract config is fetched on first use, shared between concurrent callers, and refetched on the next use after a failure, so an outage while these clients are constructed cannot crash a Node process with an unhandled rejection or leave a client permanently stuck on a failed fetch. Retries are not rate limited by the SDK; a caller polling through an outage owns its own backoff. The RPC row objects (assets, templates, schemas, collections, offers) still fetch eagerly when constructed.
-- `ExplorerApi.action` is now a getter with the same `Promise` type. It no longer appears in `Object.keys` or a spread of the instance, and assigning to it throws instead of silently overwriting.
+### Bug fixes
+
+- Constructing `ExplorerApi` or `RpcApi` no longer starts a network request, and neither does the action generator that `ExplorerApi.action` resolves to. The contract config is fetched on first use, shared between concurrent callers, and refetched on the next use after a failure, so an outage while these clients are constructed cannot crash a Node process with an unhandled rejection or leave a client permanently stuck on a failed fetch. Retries are not rate limited by the SDK, so a caller polling through an outage owns its own backoff. (#13)
+
+### Other changes
+
+- `ExplorerApi.action` is now a read-only getter with the same `Promise` type. Assigning to it throws instead of silently overwriting, and it no longer appears in `Object.keys` or in a spread of the instance. Rejection values are unchanged, including `RpcApi`'s raw-string invalid config rejection. (#13)
+- The RPC row objects (`assets`, `templates`, `schemas`, `collections`, `offers`) are outside this change and still fetch eagerly when constructed. (#13)
+
+## What's new in 2.0.2
+
+### Breaking changes
+
+- The exported table row type `Templates2TableRow` is renamed `MutableTemplatesTableRow`, named for what the row carries (a template's mutable data) rather than the on-chain table suffix. The shape is unchanged, so only imports of the old name need updating. The old name is removed rather than aliased. `ad18bb0`
+
+## What's new in 2.0.1
+
+A documentation release that carries the reworked README to the npm package page, with no code changes.
+
+### Other changes
+
+- npm publishing runs through GitHub's trusted publisher rather than a stored token, so releases are tag-driven, environment-gated, and carry provenance with no long-lived publish secret. (#9)
+- The README leads with what the library is for and a zero-config quickstart, separates the choice between the indexed and RPC clients from the method reference, and leads the transaction section with `transfer` rather than `mintasset`. It states that the SDK builds actions and never signs or broadcasts. Both contract links now point at the maintained repositories rather than the archived ones. (#10)
 
 ## What's new in 2.0.0
 
-- Zero runtime dependencies: native `BigInt` replaces bn.js and the built-in `fetch` replaces node-fetch (a custom `fetch` can still be injected).
-- Dual CJS/ESM output with bundled type declarations, plus a browser IIFE build.
-- v2 contract surface: schema-field media types (`setschematyp`) and mutable template data (`createtempl2`, `settempldata`).
-- `ActionBuilder`, a synchronous builder, alongside the authorized `ActionGenerator`.
-- Typed table rows, action data payloads, and action names exported from the package root.
-- Serialization codec with strict bounds checking and explicit error classes.
-- Explorer query-parameter, enum, and response-object types are exported from the root; no deep `build/` imports needed.
+Publishes the AtomicHub fork of `atomicassets-js` as `@atomichub/atomicassets`, updated for the v2 AtomicAssets contract.
+
+### Breaking changes
+
+- The package name is `@atomichub/atomicassets`. Install it under that name and change imports from `'atomicassets'`. (#1)
+- Deep imports such as `atomicassets/build/API/Explorer/Params` are replaced by root exports, for example `import { AssetsApiParams } from '@atomichub/atomicassets'`. (#1)
+- `max_supply` and `template_id` are numbers where the contract ABI defines them as numeric. The 64-bit id fields, asset ids and offer ids, remain strings. (#1)
+- `AttributeMap` entries are strictly typed as `{ key, value: [type, value] }`. Build them with `createAttributeMap` or `toAttributeMap` rather than by hand. Decoding also accepts `{first, second}`: no contract version emits that shape, but CDT 4.1 and newer abigen does for the pair struct before the release build patches it back to `key`/`value`. (#1)
+- Node.js 20 or newer is required. (#1)
+
+### Features
+
+- Zero runtime dependencies. Native `BigInt` replaces bn.js and the built-in `fetch` replaces node-fetch, and a custom `fetch` can still be injected. (#1)
+- Ships dual CJS and ESM output with bundled type declarations, plus a browser IIFE build. (#1)
+- Covers the v2 contract surface: schema-field media types (`setschematyp`) and mutable template data (`createtempl2`, `settempldata`). (#1)
+- Adds `ActionBuilder`, a synchronous builder, alongside the authorized `ActionGenerator`. (#1)
+- Exports typed table rows, action data payloads and action names from the package root. (#1)
+- Adds a serialization codec with strict bounds checking and explicit error classes. Codec output is byte-for-byte equivalent to the v1 big-integer implementation. (#1)
+- Explorer query-parameter, enum, and response-object types exported from the root, so no deep `build/` imports are needed. (#1)
+
+### Bug fixes
+
+- `IApiSchema` carries an optional `types` array, which `/v1/schemas` and `/v1/schemas/{collection}/{schema}` always send. Consumers of `getSchemas` and `getSchema` no longer cast past a type that denied the field existed. It is optional because a schema nested in another response never carries it, and a 1.x server does not send it at all. (#6)
+
+### Other changes
+
+- `sideEffects: false` in `package.json`, so consumers of this pure library get tree-shaking. (#5)
+- A root `NOTICE` file carries the Apache-2.0 attribution for the vendored IEEE 754 float parser, whose license header esbuild strips on the way into `build/`. It is added to the files whitelist, since npm does not include `NOTICE` by default. (#5)
 
 ## Migrating from atomicassets 1.x
 
