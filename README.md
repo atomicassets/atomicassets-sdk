@@ -1,6 +1,7 @@
 # @atomichub/atomicassets
 
 [![npm version](https://img.shields.io/npm/v/@atomichub/atomicassets.svg)](https://www.npmjs.com/package/@atomichub/atomicassets)
+[![CI](https://github.com/atomicassets/atomicassets-sdk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/atomicassets/atomicassets-sdk/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/@atomichub/atomicassets.svg)](https://github.com/atomicassets/atomicassets-sdk/blob/main/LICENSE)
 
 Read and write [AtomicAssets](https://github.com/atomicassets/atomicassets-contract) NFTs from JavaScript or TypeScript.
