@@ -89,3 +89,100 @@ describe('Explorer API URL construction', () => {
         expect(JSON.parse(calls[0].init.body)).to.deep.equal({collection_whitelist: whitelist});
     });
 });
+
+// Returns the error a call rejects with, or undefined when it resolves. The
+// guard has to fire inside the path builder, so a passing case here never
+// reaches the fetch stub.
+async function rejection(call: () => Promise<unknown>): Promise<Error | undefined> {
+    try {
+        await call();
+    } catch (e: any) {
+        return e;
+    }
+
+    return undefined;
+}
+
+describe('Explorer API path segment guard', () => {
+    it('an empty id or a dot segment rejects and sends nothing', async () => {
+        for (const id of ['', '.', '..']) {
+            const calls: FetchCall[] = [];
+            const api = mockApi(calls);
+
+            const error = await rejection(() => api.getAsset(id));
+
+            expect(error, id).to.be.instanceOf(Error);
+            expect(String(error?.message), id).to.contain('asset id');
+            expect(String(error?.message), id).to.contain('is not a valid path segment');
+            expect(String(error?.message), id).to.contain(JSON.stringify(id));
+            expect(calls.length, id).to.equal(0);
+        }
+    });
+
+    it('a missing id rejects and sends nothing', async () => {
+        const calls: FetchCall[] = [];
+        const api = mockApi(calls);
+
+        for (const value of [undefined, null]) {
+            const error = await rejection(() => api.getAsset(value as unknown as string));
+            expect(error).to.be.instanceOf(Error);
+            expect(String(error?.message)).to.equal('asset id is required');
+        }
+
+        expect(calls.length).to.equal(0);
+    });
+
+    it('a dotted name is not a dot segment and reaches the request unchanged', async () => {
+        const calls: FetchCall[] = [];
+        const api = mockApi(calls);
+
+        await api.getAccount('mycoll.wam');
+        await api.getCollection('alice.gg');
+
+        expect(calls[0].url).to.equal('https://test.api/atomicassets/v1/accounts/mycoll.wam');
+        expect(calls[1].url).to.equal('https://test.api/atomicassets/v1/collections/alice.gg');
+    });
+
+    it('every caller-supplied path segment is guarded', async () => {
+        const calls: FetchCall[] = [];
+        const api = mockApi(calls, []);
+
+        // One entry per caller-supplied segment, hand-maintained: a method
+        // added later needs its own entries here, and a listed argument
+        // position that skips the guard fails.
+        const segments: Array<[string, () => Promise<unknown>]> = [
+            ['getAsset id', () => api.getAsset('..')],
+            ['getAssetStats id', () => api.getAssetStats('..')],
+            ['getAssetLogs id', () => api.getAssetLogs('..')],
+            ['getCollection name', () => api.getCollection('..')],
+            ['getCollectionStats name', () => api.getCollectionStats('..')],
+            ['getCollectionLogs name', () => api.getCollectionLogs('..')],
+            ['getSchema collection', () => api.getSchema('..', 'myschema')],
+            ['getSchema name', () => api.getSchema('mycollection', '..')],
+            ['getSchemaStats collection', () => api.getSchemaStats('..', 'myschema')],
+            ['getSchemaStats name', () => api.getSchemaStats('mycollection', '..')],
+            ['getSchemaLogs collection', () => api.getSchemaLogs('..', 'myschema')],
+            ['getSchemaLogs name', () => api.getSchemaLogs('mycollection', '..')],
+            ['getTemplate collection', () => api.getTemplate('..', '1')],
+            ['getTemplate id', () => api.getTemplate('mycollection', '..')],
+            ['getTemplateStats collection', () => api.getTemplateStats('..', '1')],
+            ['getTemplateStats id', () => api.getTemplateStats('mycollection', '..')],
+            ['getTemplateLogs collection', () => api.getTemplateLogs('..', '1')],
+            ['getTemplateLogs id', () => api.getTemplateLogs('mycollection', '..')],
+            ['getOffer id', () => api.getOffer('..')],
+            ['getAccount account', () => api.getAccount('..')],
+            ['getAccountCollection account', () => api.getAccountCollection('..', 'mycollection')],
+            ['getAccountCollection collection', () => api.getAccountCollection('testuser2222', '..')],
+            ['getAccountBurns account', () => api.getAccountBurns('..')]
+        ];
+
+        for (const [name, call] of segments) {
+            const error = await rejection(call);
+
+            expect(error, name).to.be.instanceOf(Error);
+            expect(String(error?.message), name).to.contain('is not a valid path segment');
+        }
+
+        expect(calls.length).to.equal(0);
+    });
+});

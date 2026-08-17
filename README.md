@@ -189,6 +189,14 @@ const decoded = deserialize(encoded, schema);
 // decoded deep-equals the input object
 ```
 
+## What's new in 2.1.1
+
+Rejects a path segment that would send a read to the wrong route.
+
+### Bug fixes
+
+- An empty id, `.`, or `..` passed to an Explorer path method throws before the request goes out. Percent-encoding leaves a dot segment intact, so the URL parser collapsed it and pointed the read at a different route on the same origin, and an empty id turned a single-item lookup into the list route above it. The guard covers the sixteen methods that take an asset id, collection, schema, template, offer, or account name in the path, and none of the three values is ever a valid one. (#20)
+
 ## What's new in 2.1.0
 
 Validates the builders' numeric parameters and deprecates native asset backing.
