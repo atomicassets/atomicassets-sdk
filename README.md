@@ -189,6 +189,29 @@ const decoded = deserialize(encoded, schema);
 // decoded deep-equals the input object
 ```
 
+`convertAttributeMapToObject` handles the other raw shape, the attribute map that contract action data carries. It turns one, in either entry shape, into a plain key/value object, and it settles the JSON type of every value it copies over:
+
+| Attribute type | Value in the returned object |
+| --- | --- |
+| `float32`, `float64` (schema `float`, `double`) | A number. A value that arrives as a string is read back into a number, and a `float32` rounds to the nearest float32: the chain value when the string kept full precision, and for a float32 below 1 handed over as a seven-decimal string the nearest float32 of that string, which can differ from the chain value by a few float32 steps. |
+| `FLOAT_VEC`, `DOUBLE_VEC` (schema `float[]`, `double[]`) | An array of those numbers, element by element. |
+| `uint64`, `int64`, `UINT64_VEC`, `INT64_VEC` (schema `uint64`, `int64`, `fixed64` and their vector forms) | A decimal string, so a value too large for a JavaScript number keeps every digit. |
+| Every other type | What the codec decoded, unchanged. |
+
+A string that does not read as a finite number stays the string it is, under a float type too, and so does an empty or whitespace-only string, or a string outside the range its type represents, which is the range the Postgres `real` and `double precision` casts accept.
+
+## What's new in 2.2.0
+
+Returns float attribute values as numbers when a decoder hands them over as strings.
+
+### Bug fixes
+
+- `convertAttributeMapToObject` returns a number for a `float32` or `float64` value that arrives as a string, and for the elements of a `FLOAT_VEC` or `DOUBLE_VEC`. A map objectified by `@wharfkit/antelope` carries those values as strings, so a consumer that passed one through published a string where the schema says a number; a `float32` rounds to the nearest float32 first, which is the chain value when the string kept full precision and the nearest float32 of a seven-decimal string otherwise. A string that does not read as a finite number, an empty string, and a string outside the range its type represents pass through unchanged. (#23)
+
+### Other changes
+
+- The README states the JSON type the helper returns for each attribute type: a number for `float` and `double` and their vectors, a decimal string for the 64-bit integers and their vectors, and the decoded value for everything else. (#23)
+
 ## What's new in 2.1.1
 
 Rejects a path segment that would send a read to the wrong route.

@@ -882,9 +882,39 @@ export function toAttributeMap(obj: any, schema: SchemaFormat): AttributeMap {
     return result;
 }
 
+// Coerces one float32/float64 attribute value into a number. A value the
+// caller already decoded to a number is returned as it is; a string is read as
+// a number, and a float32 rounds to the nearest float32. That rounding gives
+// the value the chain stored when the string kept full precision; a float32
+// below 1 handed over as a seven-decimal string rounds to the nearest float32
+// of that string, which can differ from the chain value by a few float32
+// steps. A string that does not read as a finite number, the empty string
+// included, or whose float32 rounding overflows or underflows, is left alone,
+// so a caller sees what it passed in rather than NaN, Infinity or a silent
+// zero.
+function coerceFloatValue(value: any, float32: boolean): any {
+    if (typeof value !== 'string' || value.trim() === '') {
+        return value;
+    }
+
+    const parsed = Number(value);
+    const rounded = float32 ? Math.fround(parsed) : parsed;
+
+    // A zero result is only right when the string itself is a zero. Number()
+    // already flattens a double underflow such as '1e-400' to 0, so the test
+    // reads the digits ahead of the exponent rather than the parsed value.
+    if (!Number.isFinite(rounded) || (rounded === 0 && /[1-9]/.test(value.split(/[eE]/)[0]))) {
+        return value;
+    }
+
+    return rounded;
+}
+
 // Converts an on-chain AttributeMap (either entry shape) into a plain
 // key/value object. uint64/int64 values are stringified to avoid precision
-// loss; uint64/int64 vector values are stringified element-wise. Every other
+// loss; uint64/int64 vector values are stringified element-wise. float32 and
+// float64 values, and their vector elements, are returned as numbers, because
+// a map objectified by @wharfkit/antelope carries them as strings. Every other
 // variant passes through as decoded (numbers, number arrays, strings).
 export function convertAttributeMapToObject(data: DecodedAttributeMap): { [key: string]: any } {
     const result: { [key: string]: any } = {};
@@ -901,6 +931,20 @@ export function convertAttributeMapToObject(data: DecodedAttributeMap): { [key: 
         } else if (['INT64_VEC', 'UINT64_VEC'].indexOf(value[0]) >= 0) {
             Object.defineProperty(result, key, {
                 value: (value[1] as number[]).map((entry) => String(entry)),
+                enumerable: true,
+                writable: true,
+                configurable: true,
+            });
+        } else if (['float32', 'float64'].indexOf(value[0]) >= 0) {
+            Object.defineProperty(result, key, {
+                value: coerceFloatValue(value[1], value[0] === 'float32'),
+                enumerable: true,
+                writable: true,
+                configurable: true,
+            });
+        } else if (['FLOAT_VEC', 'DOUBLE_VEC'].indexOf(value[0]) >= 0) {
+            Object.defineProperty(result, key, {
+                value: (value[1] as any[]).map((entry) => coerceFloatValue(entry, value[0] === 'FLOAT_VEC')),
                 enumerable: true,
                 writable: true,
                 configurable: true,

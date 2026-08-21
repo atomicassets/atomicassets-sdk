@@ -77,6 +77,96 @@ describe('convertAttributeMapToObject', () => {
         });
     });
 
+    // A map objectified by @wharfkit/antelope carries a float32 or float64 as a
+    // string, so the helper reads one back into the number the chain holds.
+    it('reads a float64 value that arrives as a string as a number', () => {
+        const data: DecodedAttributeMap = [
+            {key: 'weight', value: ['float64', '92.13924923']}
+        ];
+
+        expect(convertAttributeMapToObject(data)).to.deep.equal({
+            weight: 92.13924923
+        });
+    });
+
+    it('rounds a float32 value that arrives as a string to the nearest float32', () => {
+        const data: DecodedAttributeMap = [
+            {key: 'ratio', value: ['float32', '1.0000001']}
+        ];
+
+        expect(convertAttributeMapToObject(data)).to.deep.equal({
+            ratio: 1.0000001192092896
+        });
+    });
+
+    it('reads a zero string as the number zero', () => {
+        const data: DecodedAttributeMap = [
+            {key: 'weight', value: ['float64', '0']},
+            {key: 'ratio', value: ['float32', '0.0000']}
+        ];
+
+        expect(convertAttributeMapToObject(data)).to.deep.equal({
+            weight: 0,
+            ratio: 0
+        });
+    });
+
+    it('leaves a float value that is already a number alone', () => {
+        const data: DecodedAttributeMap = [
+            {first: 'ratio', second: ['float64', 0.75]},
+            {key: 'tenth', value: ['float32', 0.1]}
+        ];
+
+        expect(convertAttributeMapToObject(data)).to.deep.equal({
+            ratio: 0.75,
+            tenth: 0.1
+        });
+    });
+
+    it('reads float vector elements as numbers', () => {
+        const data: DecodedAttributeMap = [
+            {key: 'weights', value: ['DOUBLE_VEC', ['1.5', 2]]},
+            {first: 'ratios', second: ['FLOAT_VEC', ['1.0000001', 0.5]]}
+        ];
+
+        expect(convertAttributeMapToObject(data)).to.deep.equal({
+            weights: [1.5, 2],
+            ratios: [1.0000001192092896, 0.5]
+        });
+    });
+
+    it('leaves a float string that is not a finite number alone', () => {
+        const data: DecodedAttributeMap = [
+            {key: 'weight', value: ['float64', 'abc']},
+            {key: 'blank', value: ['float64', '']},
+            {key: 'spaces', value: ['float32', '  ']},
+            {key: 'overflow', value: ['float32', '1e39']},
+            {key: 'underflow', value: ['float32', '1e-50']},
+            {key: 'wideOverflow', value: ['float64', '1e400']},
+            {key: 'wideUnderflow', value: ['float64', '1e-400']}
+        ];
+
+        expect(convertAttributeMapToObject(data)).to.deep.equal({
+            weight: 'abc',
+            blank: '',
+            spaces: '  ',
+            overflow: '1e39',
+            underflow: '1e-50',
+            wideOverflow: '1e400',
+            wideUnderflow: '1e-400'
+        });
+    });
+
+    it('keeps a uint64 value a decimal string', () => {
+        const data: DecodedAttributeMap = [
+            {key: 'mint', value: ['uint64', 7]}
+        ];
+
+        expect(convertAttributeMapToObject(data)).to.deep.equal({
+            mint: '7'
+        });
+    });
+
     it('passes through other types unchanged', () => {
         const data: DecodedAttributeMap = [
             {key: 'active', value: ['bool', true]},
