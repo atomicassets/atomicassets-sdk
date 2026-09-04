@@ -225,7 +225,7 @@ Reads a collection's author swap straight from the contract.
 
 ### Features
 
-- `RpcApi.getAuthorSwap` returns the collection's row in the contract's `authorswaps` table, or `null` when the table holds no row. It applies no time check, because only accepting or rejecting erases a row: an expired offer is still returned, and the caller tests the acceptance window itself. The read is never cached, because a cached copy would report an accepted or rejected swap as still present. (#24)
+- `RpcApi.getAuthorSwap` returns the collection's row in the contract's `authorswaps` table, or `null` when the table holds no row. It applies no time check, because only accepting or rejecting erases a row, so an expired offer comes back and the caller tests the acceptance window itself. The read is never cached. (#24)
 - A collection object carries `new_author_name` and `new_author_date`, the author swap as the API reports it. Both are `null` when no row exists, and an expired offer fills both, so neither field on its own says the offer can still be accepted. Both are optional because a 1.x server sends neither. (#24)
 - `AUTHOR_SWAP_TIME_DELTA` exports the contract's seven-day author-swap window in seconds. It is both the delay `createauswap` adds to a non-owner swap and the length of the window that follows the acceptance date, so a consumer computes an expiry from a named value. (#24)
 
