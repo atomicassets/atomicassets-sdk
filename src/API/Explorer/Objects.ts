@@ -15,6 +15,18 @@ export interface ILightCollection {
     data: {[key: string]: any};
     created_at_block: string;
     created_at_time: string;
+
+    // The collection's author swap, mirroring the contract's authorswaps row:
+    // the account offered the collection, and the moment in milliseconds from
+    // which the new author can accept the offer, which the contract sets to
+    // now for an owner swap and to now plus seven days otherwise; the offer
+    // expires seven days after it. Both are null when the table holds no row,
+    // which the contract erases only on accept or reject. An expired offer
+    // still reports both, so null does not mean no swap was ever made, and a
+    // value does not mean the offer can still be accepted. Both are optional
+    // because a 1.x server sends neither.
+    new_author_name?: string | null;
+    new_author_date?: string | null;
 }
 
 // The API decorates each schema format field with a resolved per-field

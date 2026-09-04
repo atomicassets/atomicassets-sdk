@@ -126,6 +126,14 @@ const INT32_MIN = -2147483648;
 const INT32_MAX = 2147483647;
 const UINT32_MAX = 4294967295;
 
+// The contract's own AUTHOR_SWAP_TIME_DELTA, in seconds. It is the delay
+// createauswap adds to the acceptance date of a non-owner swap, and it is also
+// the length of the window that follows: acceptauswap is valid only while
+// `acceptance_date < now < acceptance_date + AUTHOR_SWAP_TIME_DELTA`. Exported
+// so a consumer reading an authorswaps row derives the expiry from a named
+// value rather than a literal week.
+export const AUTHOR_SWAP_TIME_DELTA = 604800;
+
 // The numeric parameters are the one place a bad value neither throws nor
 // survives the trip. Action data reaches a signing library as JSON, and NaN and
 // Infinity have no JSON form, so `max_supply: NaN` is written as
