@@ -1,4 +1,5 @@
 import RpcActionGenerator from '../../Actions/Rpc';
+import { AuthorSwapsTableRow } from '../../Contracts/Tables';
 import RpcError from '../../Errors/RpcError';
 import RpcAsset from './Asset';
 import RpcCache, { IConfigRow } from './RpcCache';
@@ -109,6 +110,19 @@ export default class RpcApi {
         const data = await this.queue.fetchCollection(collectionName, cache);
 
         return new RpcCollection(this, collectionName, data, cache);
+    }
+
+    // Resolves the collection's authorswaps row as the contract holds it, or
+    // null when the table has no row for that collection. A row is not proof
+    // of a live offer: only acceptauswap and rejectauswap erase one, so an
+    // expired swap stays on chain until somebody rejects it. This applies no
+    // time check of its own. The caller decides acceptability, by testing now
+    // against acceptance_date and acceptance_date + AUTHOR_SWAP_TIME_DELTA.
+    //
+    // Deliberately without a cache parameter: accepting or rejecting erases
+    // the row, so a cached copy would report a resolved swap as still present.
+    async getAuthorSwap(collectionName: string): Promise<AuthorSwapsTableRow | null> {
+        return await this.queue.fetchAuthorSwap(collectionName);
     }
 
     async getCollectionTemplates(collectionName: string): Promise<RpcTemplate[]> {

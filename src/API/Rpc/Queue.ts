@@ -1,4 +1,5 @@
 import { SchemaFormatType } from '../../Actions/Generator';
+import { AuthorSwapsTableRow } from '../../Contracts/Tables';
 import { IAssetRow, ICollectionRow, IOfferRow, ISchemaRow, ITemplateRow } from './RpcCache';
 import RpcApi from './index';
 
@@ -67,6 +68,16 @@ export default class RpcQueue {
         return await this.fetch_single_row<ICollectionRow>('collections', this.api.contract, collectionName, (data?: ICollectionRow) => {
             return (useCache || typeof data !== 'undefined') ? this.api.cache.getCollection(collectionName, data) : null;
         });
+    }
+
+    // Never cached, and no useCache parameter to make it cacheable: only
+    // acceptauswap and rejectauswap erase the row, so a cached copy would
+    // report a resolved swap as still present. Expiry erases nothing, so a row
+    // this returns may be long past its acceptance window. Unlike templates2
+    // and schematypes, authorswaps is scoped to the contract account rather
+    // than to the collection, whose name is the primary key.
+    async fetchAuthorSwap(collectionName: string): Promise<AuthorSwapsTableRow | null> {
+        return await this.fetch_optional_row<AuthorSwapsTableRow>('authorswaps', this.api.contract, collectionName);
     }
 
     async fetchCollectionSchemas(collectionName: string): Promise<ISchemaRow[]> {
@@ -138,8 +149,9 @@ export default class RpcQueue {
     }
 
     // Like fetch_single_row but resolves null for a missing row instead of
-    // rejecting; used for the v2 side tables (templates2, schematypes) whose
-    // rows only exist once the corresponding v2 action has run.
+    // rejecting; used for the v2 side tables (templates2, schematypes,
+    // authorswaps) whose rows only exist once the corresponding v2 action has
+    // run.
     private async fetch_optional_row<T>(
         table: string, scope: string, match: any,
         indexPosition: number = 1, keyType: string = ''

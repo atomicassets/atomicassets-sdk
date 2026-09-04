@@ -87,6 +87,25 @@ const api = new ExplorerApi('https://wax.api.atomicassets.io', 'atomicassets', {
 const rpc = new RpcApi('https://wax.greymass.com', 'atomicassets', {});
 ```
 
+### Author swaps
+
+An AtomicAssets v2 collection changes author in two steps. The chain writes the offer to the `authorswaps` table and keeps the row until the new author accepts it or either party rejects it. Expiry erases nothing, so an expired offer stays on chain until somebody rejects it. `RpcApi.getAuthorSwap` reads that row straight from the contract:
+
+```ts
+import { AUTHOR_SWAP_TIME_DELTA } from '@atomichub/atomicassets';
+
+const swap = await rpc.getAuthorSwap('mycollection');
+const now = Math.floor(Date.now() / 1000);
+
+if (swap && now > swap.acceptance_date && now < swap.acceptance_date + AUTHOR_SWAP_TIME_DELTA) {
+    console.log(swap.new_author, 'can accept until', swap.acceptance_date + AUTHOR_SWAP_TIME_DELTA);
+}
+```
+
+A row is not a live offer. `getAuthorSwap` resolves `null` only when the table holds no row for the collection, and it applies no time check of its own, so the test above belongs to the caller. `acceptance_date` is the second from which the new author can accept, and `AUTHOR_SWAP_TIME_DELTA` is the seven-day window that follows it, in seconds.
+
+The read is never cached. Accepting or rejecting erases the row, so a cached copy would report a resolved swap as still present. `ExplorerApi` carries the same row on a collection as `new_author_name` and `new_author_date`, both `null` when no row exists and both filled in for an expired offer.
+
 ## Sending transactions
 
 Reading needs no signing. When you want to mint, transfer, or burn, this SDK builds the action objects and hands them to whatever signing library you already use. It does not sign or broadcast anything itself.
@@ -199,6 +218,16 @@ const decoded = deserialize(encoded, schema);
 | Every other type | What the codec decoded, unchanged. |
 
 A string that does not read as a finite number stays the string it is, under a float type too, and so does an empty or whitespace-only string, or a string outside the range its type represents, which is the range the Postgres `real` and `double precision` casts accept.
+
+## What's new in 2.3.0
+
+Reads a collection's author swap straight from the contract.
+
+### Features
+
+- `RpcApi.getAuthorSwap` returns the collection's row in the contract's `authorswaps` table, or `null` when the table holds no row. It applies no time check, because only accepting or rejecting erases a row: an expired offer is still returned, and the caller tests the acceptance window itself. The read is never cached, because a cached copy would report an accepted or rejected swap as still present. (#24)
+- A collection object carries `new_author_name` and `new_author_date`, the author swap as the API reports it. Both are `null` when no row exists, and an expired offer fills both, so neither field on its own says the offer can still be accepted. Both are optional because a 1.x server sends neither. (#24)
+- `AUTHOR_SWAP_TIME_DELTA` exports the contract's seven-day author-swap window in seconds. It is both the delay `createauswap` adds to a non-owner swap and the length of the window that follows the acceptance date, so a consumer computes an expiry from a named value. (#24)
 
 ## What's new in 2.2.0
 

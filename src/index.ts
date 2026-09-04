@@ -22,7 +22,7 @@ export { ISchema, SchemaObject, ByteInput };
 export {
     AttributeMap, AttributeMapEntry, DecodedAttributeMap,
     EosioActionObject, EosioAuthorizationObject, EosioSimpleAction, Format, SchemaFormatType,
-    ATOMIC_ATTRIBUTE, convertAttributeMapToObject, createAttributeMap, toAttributeMap
+    ATOMIC_ATTRIBUTE, AUTHOR_SWAP_TIME_DELTA, convertAttributeMapToObject, createAttributeMap, toAttributeMap
 } from './Actions/Generator';
 
 // AtomicHub public endpoint presets and preconfigured client factories.
